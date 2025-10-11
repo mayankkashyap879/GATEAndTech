@@ -9,6 +9,7 @@ import LandingPage from "@/pages/LandingPage";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
+import Security from "@/pages/Security";
 import Questions from "@/pages/Questions";
 import QuestionDetail from "@/pages/QuestionDetail";
 import QuestionForm from "@/pages/QuestionForm";
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/security" component={Security} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/discussions" component={Discussions} />
       <Route path="/discussions/:id" component={ThreadDetail} />

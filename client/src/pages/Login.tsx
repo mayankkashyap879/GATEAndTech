@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +11,18 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { LogIn } from "lucide-react";
 import { SiGoogle, SiGithub } from "react-icons/si";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import Footer from "@/components/Footer";
 
 export default function Login() {
@@ -18,18 +32,58 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [show2FA, setShow2FA] = useState(false);
+  const [twoFAEmail, setTwoFAEmail] = useState("");
+  const [twoFAToken, setTwoFAToken] = useState("");
+
+  // 2FA verification mutation
+  const verify2FAMutation = useMutation({
+    mutationFn: async (data: { email: string; token: string }) => {
+      const response = await apiRequest("POST", "/api/auth/2fa/login", data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      toast({
+        title: "Welcome back!",
+        description: "You have successfully logged in with 2FA.",
+      });
+      setShow2FA(false);
+      setTwoFAToken("");
+      setLocation("/dashboard");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "2FA verification failed",
+        description: error.message || "Invalid verification code",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      await login(email, password);
-      toast({
-        title: "Welcome back!",
-        description: "You have successfully logged in.",
-      });
-      setLocation("/dashboard");
+      const result = await login(email, password);
+      
+      // Check if 2FA is required
+      if (result.requires2FA && result.email) {
+        setTwoFAEmail(result.email);
+        setShow2FA(true);
+        toast({
+          title: "2FA Required",
+          description: "Please enter your 6-digit verification code.",
+        });
+      } else {
+        // Normal login without 2FA
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully logged in.",
+        });
+        setLocation("/dashboard");
+      }
     } catch (error: any) {
       toast({
         title: "Login failed",
@@ -38,6 +92,12 @@ export default function Login() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handle2FAVerify = () => {
+    if (twoFAToken.length === 6) {
+      verify2FAMutation.mutate({ email: twoFAEmail, token: twoFAToken });
     }
   };
 
@@ -135,6 +195,46 @@ export default function Login() {
           </form>
         </Card>
       </div>
+
+      {/* 2FA Verification Dialog */}
+      <Dialog open={show2FA} onOpenChange={setShow2FA}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Two-Factor Authentication</DialogTitle>
+            <DialogDescription>
+              Enter the 6-digit code from your authenticator app
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <InputOTP
+                maxLength={6}
+                value={twoFAToken}
+                onChange={setTwoFAToken}
+                data-testid="input-2fa-login"
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+            <Button
+              onClick={handle2FAVerify}
+              disabled={twoFAToken.length !== 6 || verify2FAMutation.isPending}
+              className="w-full"
+              data-testid="button-verify-2fa-login"
+            >
+              {verify2FAMutation.isPending ? "Verifying..." : "Verify"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Footer />
     </div>
   );

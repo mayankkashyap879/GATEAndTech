@@ -6,9 +6,10 @@ import type { User, InsertUser } from "@shared/schema";
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ requires2FA?: boolean; email?: string; user?: User }>;
   register: (data: { name: string; email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => void;
   isAuthenticated: boolean;
 }
 
@@ -65,7 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const login = async (email: string, password: string) => {
-    await loginMutation.mutateAsync({ email, password });
+    const result = await loginMutation.mutateAsync({ email, password });
+    return result;
   };
 
   const register = async (data: { name: string; email: string; password: string }) => {
@@ -76,6 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await logoutMutation.mutateAsync();
   };
 
+  const refreshUser = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -84,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        refreshUser,
         isAuthenticated,
       }}
     >

@@ -1,244 +1,46 @@
 # GATE And Tech - Exam Preparation Platform
 
-## Project Overview
-GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Aptitude Test in Engineering) aspirants. Built with Express + Vite + React stack, featuring full authentication, question bank management, mock testing engine, analytics, and community features.
-
-## Recent Changes (October 11, 2025)
-
-### Database & Schema Setup
-- Created comprehensive PostgreSQL database schema with Drizzle ORM
-- Implemented tables for: users, sessions, questions, topics, tests, test attempts, subscriptions, discussions, notifications
-- Added role-based access control (student, moderator, admin)
-- Set up storage layer with full CRUD operations for all entities
-
-### Authentication System (✅ Completed & Security Hardened)
-- Implemented Passport.js authentication with local strategy (email/password)
-- Added session management with express-session
-- Created secure user registration and login flows with bcrypt password hashing
-- Built authentication context (AuthProvider) for React frontend
-- Developed Login, Register, and Dashboard pages with proper routing
-- Updated Navbar with user menu and authentication state display
-- Added role-based middleware for API route protection
-- **Security Fix**: Implemented strict schema validation to prevent privilege escalation
-  - Created `registerUserSchema` that only accepts name, email, password
-  - Server-controlled defaults for role, authProvider, currentPlan
-  - Separate validation schemas for regular users vs admins (`updateUserProfileSchema` vs `adminUpdateUserSchema`)
-  - Prevents users from self-assigning admin role or pro plan
-
-### Question Bank Management (✅ Completed & Security Hardened)
-- Built comprehensive question management system for GATE exam preparation
-- Created Questions page with filtering by topic, difficulty, and type
-- Implemented QuestionForm for creating/editing questions with role-based access
-- Added QuestionDetail page showing full question with options and explanations
-- Features:
-  - Support for multiple question types: MCQ (single), MSQ (multiple), Numerical
-  - Difficulty levels: Easy, Medium, Hard
-  - Rich question content with optional images
-  - Detailed explanations for answers
-  - Topic-based categorization
-  - Marks and negative marking configuration
-  - Publish/draft status control
-- **Access Control & Security**:
-  - Question creation: All authenticated users (students, moderators, admins) can create
-  - Question editing: Students can only edit their own questions; admins/moderators can edit any
-  - Topic reassignment: Restricted to admins/moderators only
-  - Delete questions: Admin-only access
-  - Field validation whitelist (`updateQuestionSchema`): Prevents modification of privileged fields (id, createdBy, timestamps)
-  - Atomic operation order: Topic authorization checked before any database updates
-  - Ownership validation: Students cannot edit others' questions
-- **Admin Dashboard Enhancement**:
-  - Role-switching UI: Admins can view dashboard as moderator or student
-  - ViewAsRoleContext: Cross-app state management for role switching
-  - E2E tested and verified
-- Integrated question management into navigation menu
-- Fixed topic filtering bug by properly joining questionTopics table
-
-### Mock Test Engine (✅ Completed & Redesigned to Match GATE UI)
-- Built authentic GATE-style exam interface with real-time response persistence
-- **Backend API Routes**:
-  - Test CRUD operations (create, read, update, delete)
-  - Test attempt management with score calculation
-  - Response upsert logic to handle answer changes without duplicates
-  - Automatic score calculation with negative marking support
-- **Test Creation & Management**:
-  - Admin/moderator test creation form with question selection
-  - Test editing capabilities with duration and marks configuration
-  - Pro tier support for premium tests
-  - Scheduling with start/end dates
-- **Tests Browse Page**:
-  - List all available tests with filtering (free/pro, active/upcoming/past)
-  - Test card display with metadata (questions, duration, marks)
-  - Start test functionality for students
-- **GATE-Style Test Interface** (Redesigned):
-  - **Instructions Page**: Detailed exam instructions, user info, test metadata, "I am ready to begin" button
-  - **Blue Header**: Test title, timer, calculator button, instructions button
-  - **Question Display**: Clean question area with marks display, question content, image support
-  - **Answer Inputs**: Radio for MCQ single, Checkbox for MCQ multiple, Input for numerical
-  - **Question Palette** (Right sidebar):
-    - Color-coded status buttons (4-column grid)
-    - 6 states: Current (Blue), Answered (Green), Not Answered (Red), Marked (Purple), Answered & Marked (Dark Purple), Not Visited (Gray)
-    - Legend explaining all statuses
-    - Live statistics card
-  - **Action Buttons**: Mark for Review & Next, Clear Response, Save & Next, Submit
-  - **Exam Summary Page**: Section-wise statistics table before final submission
-  - **Calculator Dialog**: Placeholder for scientific calculator
-- **Test Results Page**:
-  - Detailed score display with percentage and performance metrics
-  - Question-by-question review with correct answers
-  - Performance analytics (correct, incorrect, unanswered counts)
-  - Explanations for all questions
-- **Critical Bug Fixes**:
-  - Fixed response persistence during test-taking
-  - Implemented upsert pattern to prevent duplicate responses
-  - Added proper handling for cleared/empty answers (treated as unanswered)
-  - Accurate score calculation with negative marking only for incorrect attempts
-  - Implemented visited question tracking for accurate status display
-  - Fixed question status priority (Marked shows purple before Not Answered red)
-  - Fixed mark-for-review persistence (corrected inverted logic)
-  - Corrected summary statistics to include all questions
-  - **Numerical Input Race Condition Fix** (✅ Production-Ready): 
-    - Implemented ref-based debouncing system (500ms) for numerical inputs to prevent race conditions
-    - Fixed stale closure issues by using refs for state (attemptIdRef, answersRef, markedForReviewRef, currentQuestionIndexRef)
-    - Created shared `flushPendingSave()` helper that handles both pending saves and fallback from refs
-    - All navigation paths flush pending saves (Save & Next, Mark & Next, Submit, summary, palette)
-    - Cleanup effect uses keepalive fetch to persist answers on unmount
-    - E2e tested: rapid typing + immediate submit, and normal typing + debounce wait scenarios
-
-### Analytics & Performance Tracking (✅ Completed & E2E Tested)
-- Built comprehensive analytics dashboard for student performance insights
-- **Backend Analytics Methods**:
-  - `getUserPerformanceStats` - Overall performance metrics (total tests, avg score, accuracy, avg time)
-  - `getTopicWisePerformance` - Accuracy breakdown by topics
-  - `getDifficultyWisePerformance` - Performance by difficulty levels (easy/medium/hard)
-  - `getPerformanceTrend` - Score progression over time (last 10 tests)
-- **API Routes**:
-  - `/api/analytics/performance` - Overall performance stats
-  - `/api/analytics/topics` - Topic-wise analytics
-  - `/api/analytics/difficulty` - Difficulty-wise analytics
-  - `/api/analytics/trend` - Performance trend data
-  - `/api/analytics/history` - Test attempt history
-- **Dashboard Features**:
-  - **Overview Cards**: Total Tests, Average Score, Accuracy %, Average Time per Test
-  - **Performance Trend Chart**: Line chart showing score progression over time
-  - **Response Distribution**: Pie chart showing correct/incorrect/unanswered breakdown
-  - **Topic-wise Performance**: Bar chart showing accuracy across different topics
-  - **Difficulty-wise Performance**: Bar chart comparing performance on easy/medium/hard questions
-  - **Weak Areas Section**: Lists bottom 5 topics sorted by accuracy for focused improvement
-  - **Empty State Handling**: Graceful zero-state display for new users with no test attempts
-  - **Loading States**: Skeleton loaders for all data sections during fetch
-- **Data Visualization**: Using recharts library (LineChart, BarChart, PieChart)
-- **Routing**: `/analytics` route added with navigation links in user menu (desktop & mobile)
-- **Security**: All analytics endpoints protected with `requireAuth` middleware
-- **E2E Tested**: Verified empty state, stat cards, charts rendering, and navigation flows
-
-### UI/UX Enhancements (✅ Completed October 11, 2025)
-- **Role-Switching for Moderators**:
-  - Extended ViewAsRoleContext to support moderator role-switching
-  - Admin can view as: admin, moderator, student (3 options)
-  - Moderator can view as: moderator, student (2 options)
-  - Student has no role-switching UI (locked to actual role)
-  - Role switcher visible on dashboard for admin and moderator users
-- **Dashboard Navigation Enhancements**:
-  - Added Quick Links section with 3 navigation cards
-  - Cards: Mock Tests (/tests), Question Bank (/questions), Analytics (/analytics)
-  - Cards use hover-elevate for better UX
-  - Proper test IDs for E2E testing
-- **Footer Component**:
-  - Created reusable Footer component for public pages
-  - Sections: Branding, Quick Links (Login, Register, About, Contact), Resources (Help, Privacy, Terms, FAQ), Social Media (GitHub, Twitter, LinkedIn, Email)
-  - Responsive grid layout (1 column mobile, 4 columns desktop)
-  - Added to: LandingPage, Login, Register pages
-  - Copyright notice with current year
-  - All links properly instrumented with test IDs
-
-### API Routes
-- `/api/auth/register` - User registration
-- `/api/auth/login` - User login
-- `/api/auth/logout` - User logout
-- `/api/auth/me` - Get current user
-- `/api/users/:id` - User profile management
-- `/api/topics` - Topic management
-- `/api/questions` - Question CRUD with filtering
-- `/api/tests` - Test management with pro tier support
-- `/api/attempts` - Test attempt tracking
-- `/api/analytics/*` - Analytics and performance tracking endpoints
-- `/api/discussions` - Community discussion forums
-
-## Project Architecture
-
-### Backend (Express + TypeScript)
-- **server/index.ts**: Main server setup with session middleware
-- **server/auth.ts**: Passport.js configuration and auth middleware
-- **server/routes.ts**: API route definitions
-- **server/storage.ts**: DatabaseStorage implementation with Drizzle ORM
-- **server/db.ts**: Database connection setup
-
-### Frontend (React + Vite)
-- **client/src/App.tsx**: Main app with routing
-  - Authentication: /, /login, /register, /dashboard
-  - Questions: /questions, /questions/:id, /questions/:id/edit, /questions/new
-  - Tests: /tests, /tests/new, /tests/:id/edit, /tests/:id, /attempts/:id/results
-  - Analytics: /analytics
-- **client/src/contexts/AuthContext.tsx**: Authentication state management
-- **client/src/pages/**: Page components
-  - Landing, Login, Register, Dashboard
-  - Questions, QuestionDetail, QuestionForm (question management)
-  - Tests, TestForm, TakeTest, TestResults (mock test engine)
-  - Analytics (performance tracking dashboard)
-- **client/src/components/**: Reusable UI components
-  - Navbar with user menu and Analytics link
-  - Footer with Quick Links, Resources, and Social Media sections
-
-### Database Schema
-- Users with role-based access (student, moderator, admin)
-- Questions with topics, difficulty levels, and multiple types (MCQ, numerical)
-- Tests with scheduling, pro tier support, and question management
-- Test attempts with response tracking and analytics
-- Subscriptions for Pro plan management
-- Discussion threads and posts for community features
-- Notifications system
-
-## Tech Stack
-- **Backend**: Express, TypeScript, Passport.js, bcrypt
-- **Database**: PostgreSQL (Neon), Drizzle ORM
-- **Frontend**: React, Vite, Wouter (routing), TanStack Query
-- **UI**: shadcn/ui components, Tailwind CSS
-- **Auth**: Passport.js with local strategy, sessions
-
-## Environment Variables
-- `DATABASE_URL`: PostgreSQL connection string
-- `SESSION_SECRET`: Secret for session encryption
-- `PORT`: Server port (default: 5000)
+## Overview
+GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Aptitude Test in Engineering) aspirants. It aims to provide a robust learning environment with features like full authentication, an extensive question bank, a realistic mock testing engine, detailed analytics, and community interaction. The platform is built with an Express + Vite + React stack and focuses on delivering a high-quality, secure, and user-friendly experience to help students excel in their GATE examinations.
 
 ## User Preferences
 None set yet.
 
-## Next Steps
-1. ✅ ~~Build question bank management UI (admin panel)~~ - Completed
-2. ✅ ~~Build mock test engine with GATE-style interface~~ - Completed
-3. ✅ ~~Create analytics and performance tracking~~ - Completed
-4. Add topic management UI for admins/moderators
-5. ✅ ~~Build community features UI (discussion forums)~~ - Completed
-6. Add payment integration with Razorpay
-7. Add email notifications (SendGrid)
-8. Implement 2FA for enhanced security
-9. Implement question import/export functionality
-10. Add bulk question upload from CSV/Excel
+## System Architecture
 
-## Latest Updates (Completed)
+### UI/UX Decisions
+The platform features a clean, responsive design using `shadcn/ui` components and Tailwind CSS. The mock test engine is specifically designed to mimic the authentic GATE exam interface, including a color-coded question palette, real-time timer, and detailed instructions. Dashboards and analytics leverage `recharts` for clear data visualization. Role-switching capabilities are implemented for admins and moderators to manage content effectively.
 
-### Question Bank Access Restriction (✅ October 11, 2025)
-- **RESTRICTED TO ADMIN/MODERATOR ONLY**: Question Bank now completely inaccessible to students
-- Backend: All `/api/questions/*` routes protected with `requireRole("admin", "moderator")`
-- Frontend: Question Bank navigation hidden from students using `effectiveRole` check
-- Dashboard Quick Links: Admin/Moderator see Question Bank, Students see Q&A Forum
-- E2E Tested: Access control verified for all roles
+### Technical Implementations
+- **Authentication**: Implemented using Passport.js with local (email/password) and OAuth (Google, GitHub) strategies. Features include secure registration/login, session management, and role-based access control. Two-Factor Authentication (TOTP) is integrated for enhanced security.
+- **Question Bank Management**: Supports multiple question types (MCQ, MSQ, Numerical) with varying difficulty levels, rich content, explanations, and topic-based categorization. Access control ensures only authorized roles (admin/moderator) can manage the core question bank.
+- **Mock Test Engine**: Provides an authentic GATE-style testing experience with real-time response persistence, automatic scoring (including negative marking), and a comprehensive exam summary. Numerical input handling includes debouncing to prevent race conditions.
+- **Analytics & Performance Tracking**: Offers detailed insights into user performance through an analytics dashboard. Metrics include overall performance, topic-wise accuracy, difficulty-wise performance, and score trends.
+- **Discussion Forum**: A Q&A system allowing all authenticated users to create threads and post answers, fostering a community learning environment.
 
-### Discussion Forum - Q&A System (✅ October 11, 2025)
-- Built Q&A forum for all authenticated users to ask doubts and get answers
-- Pages: `/discussions` (list threads), `/discussions/:id` (thread detail)
-- Features: Thread creation, answer posting, view counts, user avatars
-- API Routes: GET/POST `/api/discussions`, GET/POST `/api/discussions/:id/posts`
-- Navigation: "Q&A Forum" link added to user menu for all users
-- Clear separation: Question Bank (exam questions, admin/moderator) vs Q&A Forum (student doubts, all users)
-- E2E Tested: Thread creation, answer posting, role-based access verified
+### Feature Specifications
+- **User Management**: Role-based access control (student, moderator, admin).
+- **Authentication**: Local, OAuth (Google, GitHub), 2FA/TOTP.
+- **Question Management**: CRUD operations for questions, topics, difficulty, type, and status.
+- **Test Management**: Test creation, scheduling, pro-tier support, and attempt tracking.
+- **Performance Analytics**: Overall, topic-wise, difficulty-wise, and trend analysis.
+- **Community**: Discussion forums/Q&A system.
+- **Security**: Strict schema validation, role-based middleware, password hashing (bcrypt), and secure session management.
+
+### System Design Choices
+- **Backend**: Node.js with Express.js for RESTful API services.
+- **Frontend**: React.js with Vite for a fast and reactive user interface.
+- **Database**: PostgreSQL for robust data storage, managed with Drizzle ORM for type-safe interactions.
+- **State Management**: React Context API for authentication, TanStack Query for data fetching and caching.
+- **Routing**: Wouter for client-side navigation.
+
+## External Dependencies
+
+- **Database**: PostgreSQL (hosted on Neon)
+- **ORM**: Drizzle ORM
+- **Authentication**: Passport.js (with `passport-google-oauth20`, `passport-github2`, `passport-local`)
+- **UI Components**: shadcn/ui
+- **Styling**: Tailwind CSS
+- **Charting**: recharts
+- **2FA**: speakeasy, qrcode
+- **Hashing**: bcrypt
