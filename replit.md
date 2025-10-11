@@ -131,6 +131,26 @@ GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Ap
 - **Security**: All analytics endpoints protected with `requireAuth` middleware
 - **E2E Tested**: Verified empty state, stat cards, charts rendering, and navigation flows
 
+### UI/UX Enhancements (✅ Completed October 11, 2025)
+- **Role-Switching for Moderators**:
+  - Extended ViewAsRoleContext to support moderator role-switching
+  - Admin can view as: admin, moderator, student (3 options)
+  - Moderator can view as: moderator, student (2 options)
+  - Student has no role-switching UI (locked to actual role)
+  - Role switcher visible on dashboard for admin and moderator users
+- **Dashboard Navigation Enhancements**:
+  - Added Quick Links section with 3 navigation cards
+  - Cards: Mock Tests (/tests), Question Bank (/questions), Analytics (/analytics)
+  - Cards use hover-elevate for better UX
+  - Proper test IDs for E2E testing
+- **Footer Component**:
+  - Created reusable Footer component for public pages
+  - Sections: Branding, Quick Links (Login, Register, About, Contact), Resources (Help, Privacy, Terms, FAQ), Social Media (GitHub, Twitter, LinkedIn, Email)
+  - Responsive grid layout (1 column mobile, 4 columns desktop)
+  - Added to: LandingPage, Login, Register pages
+  - Copyright notice with current year
+  - All links properly instrumented with test IDs
+
 ### API Routes
 - `/api/auth/register` - User registration
 - `/api/auth/login` - User login
@@ -165,7 +185,9 @@ GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Ap
   - Questions, QuestionDetail, QuestionForm (question management)
   - Tests, TestForm, TakeTest, TestResults (mock test engine)
   - Analytics (performance tracking dashboard)
-- **client/src/components/**: Reusable UI components (Navbar with Analytics link, etc.)
+- **client/src/components/**: Reusable UI components
+  - Navbar with user menu and Analytics link
+  - Footer with Quick Links, Resources, and Social Media sections
 
 ### Database Schema
 - Users with role-based access (student, moderator, admin)
