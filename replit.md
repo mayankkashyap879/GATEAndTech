@@ -25,10 +25,10 @@ GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Ap
   - Separate validation schemas for regular users vs admins (`updateUserProfileSchema` vs `adminUpdateUserSchema`)
   - Prevents users from self-assigning admin role or pro plan
 
-### Question Bank Management (✅ Completed)
+### Question Bank Management (✅ Completed & Security Hardened)
 - Built comprehensive question management system for GATE exam preparation
 - Created Questions page with filtering by topic, difficulty, and type
-- Implemented QuestionForm for creating/editing questions (admin/moderator only)
+- Implemented QuestionForm for creating/editing questions with role-based access
 - Added QuestionDetail page showing full question with options and explanations
 - Features:
   - Support for multiple question types: MCQ (single), MSQ (multiple), Numerical
@@ -38,7 +38,18 @@ GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Ap
   - Topic-based categorization
   - Marks and negative marking configuration
   - Publish/draft status control
-- Admin/moderator-only question creation and editing with proper access control
+- **Access Control & Security**:
+  - Question creation: All authenticated users (students, moderators, admins) can create
+  - Question editing: Students can only edit their own questions; admins/moderators can edit any
+  - Topic reassignment: Restricted to admins/moderators only
+  - Delete questions: Admin-only access
+  - Field validation whitelist (`updateQuestionSchema`): Prevents modification of privileged fields (id, createdBy, timestamps)
+  - Atomic operation order: Topic authorization checked before any database updates
+  - Ownership validation: Students cannot edit others' questions
+- **Admin Dashboard Enhancement**:
+  - Role-switching UI: Admins can view dashboard as moderator or student
+  - ViewAsRoleContext: Cross-app state management for role switching
+  - E2E tested and verified
 - Integrated question management into navigation menu
 - Fixed topic filtering bug by properly joining questionTopics table
 
