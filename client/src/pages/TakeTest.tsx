@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
@@ -32,7 +32,7 @@ import type { Test, Question, TestAttempt } from "@shared/schema";
 type ViewState = "instructions" | "test" | "summary";
 
 export default function TakeTest() {
-  const [, params] = useRoute("/tests/:id/take");
+  const [, params] = useRoute("/tests/:id");
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const testId = params?.id;
@@ -45,6 +45,14 @@ export default function TakeTest() {
   const [visitedQuestions, setVisitedQuestions] = useState<Set<string>>(new Set());
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [showCalculator, setShowCalculator] = useState(false);
+  
+  // Refs for debouncing - avoids cleanup effect dependency issues
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingSaveRef = useRef<{ questionId: string; answer: string; isMarked: boolean } | null>(null);
+  const attemptIdRef = useRef<string | null>(null);
+  const answersRef = useRef<Record<string, string>>({});
+  const markedForReviewRef = useRef<Set<string>>(new Set());
+  const currentQuestionIndexRef = useRef<number>(0);
 
   const { data: test, isLoading: isLoadingTest } = useQuery<Test>({
     queryKey: ["/api/tests", testId],
@@ -111,6 +119,23 @@ export default function TakeTest() {
     }
   }, [viewState, timeLeft]);
 
+  // Sync refs with state to avoid stale closures
+  useEffect(() => {
+    attemptIdRef.current = attemptId;
+  }, [attemptId]);
+
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  useEffect(() => {
+    markedForReviewRef.current = markedForReview;
+  }, [markedForReview]);
+
+  useEffect(() => {
+    currentQuestionIndexRef.current = currentQuestionIndex;
+  }, [currentQuestionIndex]);
+
   // Mark current question as visited
   useEffect(() => {
     if (viewState === "test" && questions && questions[currentQuestionIndex]) {
@@ -118,6 +143,32 @@ export default function TakeTest() {
       setVisitedQuestions(prev => new Set([...prev, questionId]));
     }
   }, [currentQuestionIndex, viewState, questions]);
+
+  // Cleanup: flush pending save on unmount only
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        // Flush the pending save using the ref data
+        if (pendingSaveRef.current && attemptIdRef.current) {
+          const { questionId, answer, isMarked } = pendingSaveRef.current;
+          fetch(`/api/attempts/${attemptIdRef.current}/responses`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              questionId,
+              selectedAnswer: answer,
+              isMarkedForReview: isMarked,
+              timeTaken: 0,
+            }),
+            keepalive: true,
+          }).catch(() => {
+            // Ignore errors during cleanup
+          });
+        }
+      }
+    };
+  }, []); // Empty deps - only runs on mount/unmount
 
   const saveResponseMutation = useMutation({
     mutationFn: async (data: { questionId: string; selectedAnswer: string; isMarkedForReview: boolean }) => {
@@ -129,15 +180,82 @@ export default function TakeTest() {
     },
   });
 
-  const handleAnswerChange = (questionId: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+  // Shared helper to flush any pending debounced save
+  const flushPendingSave = () => {
+    // Clear any pending timer
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
     
-    if (attemptId) {
+    // If there's a pending save, flush it
+    if (pendingSaveRef.current && attemptIdRef.current) {
+      const { questionId, answer, isMarked } = pendingSaveRef.current;
       saveResponseMutation.mutate({
         questionId,
-        selectedAnswer: value || "",
-        isMarkedForReview: markedForReview.has(questionId),
+        selectedAnswer: answer,
+        isMarkedForReview: isMarked,
       });
+      pendingSaveRef.current = null;
+    }
+    // Even if pendingSaveRef is null (debounce already fired), ensure current answer is saved
+    // This handles the case where debounce fired but mutation might have failed or is pending
+    else if (attemptIdRef.current && questions && questions[currentQuestionIndexRef.current]) {
+      const currentQuestion = questions[currentQuestionIndexRef.current];
+      const currentAnswer = answersRef.current[currentQuestion.id] || "";
+      const isMarked = markedForReviewRef.current.has(currentQuestion.id);
+      
+      // Only save if there's an answer or mark status (avoid unnecessary saves)
+      if (currentAnswer || isMarked) {
+        saveResponseMutation.mutate({
+          questionId: currentQuestion.id,
+          selectedAnswer: currentAnswer,
+          isMarkedForReview: isMarked,
+        });
+      }
+    }
+  };
+
+  const handleAnswerChange = (questionId: string, value: string, isNumerical: boolean = false) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    
+    // Clear existing timer if exists
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    
+    if (attemptId) {
+      // For numerical inputs, debounce to avoid race conditions
+      if (isNumerical) {
+        // Store pending save data in ref
+        pendingSaveRef.current = {
+          questionId,
+          answer: value || "",
+          isMarked: markedForReview.has(questionId),
+        };
+        
+        // Set debounced timer
+        saveTimerRef.current = setTimeout(() => {
+          if (pendingSaveRef.current) {
+            const { questionId, answer, isMarked } = pendingSaveRef.current;
+            saveResponseMutation.mutate({
+              questionId,
+              selectedAnswer: answer,
+              isMarkedForReview: isMarked,
+            });
+            pendingSaveRef.current = null;
+          }
+          saveTimerRef.current = null;
+        }, 500); // 500ms debounce
+      } else {
+        // For MCQ, save immediately
+        saveResponseMutation.mutate({
+          questionId,
+          selectedAnswer: value || "",
+          isMarkedForReview: markedForReview.has(questionId),
+        });
+      }
     }
   };
 
@@ -171,6 +289,8 @@ export default function TakeTest() {
   };
 
   const handleSaveAndNext = () => {
+    flushPendingSave();
+    
     if (currentQuestionIndex < (questions?.length || 0) - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
     }
@@ -185,6 +305,7 @@ export default function TakeTest() {
   };
 
   const handleSubmit = () => {
+    flushPendingSave();
     submitTestMutation.mutate();
   };
 
@@ -570,7 +691,7 @@ export default function TakeTest() {
                       id="numerical-answer"
                       type="text"
                       value={answers[currentQuestion.id] || ""}
-                      onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                      onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value, true)}
                       className="mt-2 max-w-xs"
                       placeholder="Type your answer"
                       data-testid="input-numerical-answer"
@@ -610,7 +731,10 @@ export default function TakeTest() {
                 Save & Next
               </Button>
               <Button
-                onClick={() => setViewState("summary")}
+                onClick={() => {
+                  flushPendingSave();
+                  setViewState("summary");
+                }}
                 variant="outline"
                 className="border-emerald-600 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950"
                 data-testid="button-submit"
@@ -645,7 +769,10 @@ export default function TakeTest() {
                 return (
                   <Button
                     key={q.id}
-                    onClick={() => setCurrentQuestionIndex(index)}
+                    onClick={() => {
+                      flushPendingSave();
+                      setCurrentQuestionIndex(index);
+                    }}
                     className={`h-10 ${getStatusColor(status)}`}
                     size="sm"
                     data-testid={`button-question-${index + 1}`}

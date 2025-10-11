@@ -85,6 +85,13 @@ GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Ap
   - Fixed question status priority (Marked shows purple before Not Answered red)
   - Fixed mark-for-review persistence (corrected inverted logic)
   - Corrected summary statistics to include all questions
+  - **Numerical Input Race Condition Fix** (✅ Production-Ready): 
+    - Implemented ref-based debouncing system (500ms) for numerical inputs to prevent race conditions
+    - Fixed stale closure issues by using refs for state (attemptIdRef, answersRef, markedForReviewRef, currentQuestionIndexRef)
+    - Created shared `flushPendingSave()` helper that handles both pending saves and fallback from refs
+    - All navigation paths flush pending saves (Save & Next, Mark & Next, Submit, summary, palette)
+    - Cleanup effect uses keepalive fetch to persist answers on unmount
+    - E2e tested: rapid typing + immediate submit, and normal typing + debounce wait scenarios
 
 ### API Routes
 - `/api/auth/register` - User registration
@@ -111,7 +118,7 @@ GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Ap
 - **client/src/App.tsx**: Main app with routing
   - Authentication: /, /login, /register, /dashboard
   - Questions: /questions, /questions/:id, /questions/:id/edit, /questions/new
-  - Tests: /tests, /tests/new, /tests/:id/edit, /tests/:id/take, /tests/:id/results
+  - Tests: /tests, /tests/new, /tests/:id/edit, /tests/:id, /attempts/:id/results
 - **client/src/contexts/AuthContext.tsx**: Authentication state management
 - **client/src/pages/**: Page components
   - Landing, Login, Register, Dashboard
