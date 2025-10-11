@@ -458,6 +458,20 @@ export const insertQuestionSchema = createInsertSchema(questions, {
   negativeMarks: z.number().int().nonnegative(),
 }).omit({ id: true, createdAt: true, updatedAt: true });
 
+// Update schema - only allows safe fields, excludes id, createdBy, createdAt, updatedAt
+export const updateQuestionSchema = z.object({
+  content: z.string().min(10).optional(),
+  type: z.enum(["mcq_single", "mcq_multiple", "numerical"]).optional(),
+  difficulty: z.enum(["easy", "medium", "hard"]).optional(),
+  options: z.any().optional(), // jsonb field
+  correctAnswer: z.string().optional(),
+  explanation: z.string().optional(),
+  marks: z.number().int().positive().optional(),
+  negativeMarks: z.number().int().nonnegative().optional(),
+  imageUrl: z.string().url().optional().nullable(),
+  isPublished: z.boolean().optional(),
+});
+
 export const selectQuestionSchema = createSelectSchema(questions);
 
 // Test schemas

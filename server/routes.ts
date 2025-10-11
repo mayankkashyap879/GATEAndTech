@@ -7,7 +7,8 @@ import {
   registerUserSchema, 
   updateUserProfileSchema,
   adminUpdateUserSchema,
-  insertQuestionSchema, 
+  insertQuestionSchema,
+  updateQuestionSchema,
   insertTestSchema, 
   insertThreadSchema, 
   insertPostSchema 
@@ -252,18 +253,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update question (all authenticated users)
+  // Update question (owner, admin, or moderator)
   app.patch("/api/questions/:id", requireAuth, async (req: Request, res: Response) => {
     try {
+      const currentUser = req.user as any;
       const { topicId, ...questionData } = req.body;
       
-      const question = await storage.updateQuestion(req.params.id, questionData);
+      // Fetch existing question to check ownership
+      const existingQuestion = await storage.getQuestion(req.params.id);
+      if (!existingQuestion) {
+        return res.status(404).json({ error: "Question not found" });
+      }
+      
+      // Check authorization: admin/moderator can edit any question, students can only edit their own
+      const isAdminOrModerator = currentUser.role === "admin" || currentUser.role === "moderator";
+      const isOwner = existingQuestion.createdBy === currentUser.id;
+      
+      if (!isAdminOrModerator && !isOwner) {
+        return res.status(403).json({ error: "You can only edit questions you created" });
+      }
+      
+      // Validate update data - only allow safe fields to be modified
+      const validatedData = updateQuestionSchema.parse(questionData);
+      
+      // Check topic authorization BEFORE making any changes
+      if (topicId && !isAdminOrModerator) {
+        return res.status(403).json({ error: "Only admins and moderators can change question topics" });
+      }
+      
+      // Update question fields
+      const question = await storage.updateQuestion(req.params.id, validatedData);
       if (!question) {
         return res.status(404).json({ error: "Question not found" });
       }
       
-      // Update topic association if provided
-      if (topicId) {
+      // Update topic association if authorized and topicId is provided
+      if (topicId && isAdminOrModerator) {
         // Remove existing topics and add new one
         const existingTopics = await storage.getQuestionTopics(req.params.id);
         for (const topic of existingTopics) {
@@ -274,6 +299,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(question);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
       console.error("Error updating question:", error);
       res.status(500).json({ error: "Internal server error" });
     }
