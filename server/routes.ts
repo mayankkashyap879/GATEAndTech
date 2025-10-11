@@ -383,6 +383,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update test (moderator/admin only)
+  app.patch("/api/tests/:id", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
+    try {
+      const { questionIds, ...testData } = req.body;
+      
+      const test = await storage.updateTest(req.params.id, testData);
+      if (!test) {
+        return res.status(404).json({ error: "Test not found" });
+      }
+      
+      res.json(test);
+    } catch (error) {
+      console.error("Error updating test:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Delete test (admin only)
+  app.delete("/api/tests/:id", requireRole("admin"), async (req: Request, res: Response) => {
+    try {
+      await storage.deleteTest(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting test:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // ============================================================================
   // TEST ATTEMPT ROUTES
   // ============================================================================
@@ -474,6 +502,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedAttempt);
     } catch (error) {
       console.error("Error submitting attempt:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Get attempt responses
+  app.get("/api/attempts/:id/responses", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const currentUser = req.user as any;
+      const attempt = await storage.getTestAttempt(req.params.id);
+      
+      if (!attempt) {
+        return res.status(404).json({ error: "Attempt not found" });
+      }
+      
+      if (attempt.userId !== currentUser.id && currentUser.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      const responses = await storage.getTestAttemptResponses(req.params.id);
+      res.json(responses);
+    } catch (error) {
+      console.error("Error fetching responses:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Save test response
+  app.post("/api/attempts/:id/responses", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const currentUser = req.user as any;
+      const attempt = await storage.getTestAttempt(req.params.id);
+      
+      if (!attempt) {
+        return res.status(404).json({ error: "Attempt not found" });
+      }
+      
+      if (attempt.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      if (attempt.status !== "in_progress") {
+        return res.status(400).json({ error: "Cannot modify submitted test" });
+      }
+      
+      const { questionId, selectedAnswer, isMarkedForReview, timeTaken } = req.body;
+      
+      const response = await storage.createTestResponse({
+        attemptId: req.params.id,
+        questionId,
+        selectedAnswer,
+        isMarkedForReview,
+        timeTaken,
+      });
+      
+      res.status(201).json(response);
+    } catch (error) {
+      console.error("Error saving response:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   });

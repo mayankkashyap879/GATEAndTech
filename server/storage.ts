@@ -81,6 +81,7 @@ export interface IStorage {
   }): Promise<Test[]>;
   createTest(test: InsertTest): Promise<Test>;
   updateTest(id: string, data: Partial<InsertTest>): Promise<Test | undefined>;
+  deleteTest(id: string): Promise<void>;
   addQuestionsToTest(testId: string, questionIds: string[]): Promise<void>;
   getTestQuestions(testId: string): Promise<Question[]>;
   
@@ -340,6 +341,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(tests.id, id))
       .returning();
     return test || undefined;
+  }
+
+  async deleteTest(id: string): Promise<void> {
+    await db.delete(tests).where(eq(tests.id, id));
   }
 
   async addQuestionsToTest(testId: string, questionIds: string[]): Promise<void> {
