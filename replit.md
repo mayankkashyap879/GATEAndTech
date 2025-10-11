@@ -93,6 +93,33 @@ GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Ap
     - Cleanup effect uses keepalive fetch to persist answers on unmount
     - E2e tested: rapid typing + immediate submit, and normal typing + debounce wait scenarios
 
+### Analytics & Performance Tracking (✅ Completed & E2E Tested)
+- Built comprehensive analytics dashboard for student performance insights
+- **Backend Analytics Methods**:
+  - `getUserPerformanceStats` - Overall performance metrics (total tests, avg score, accuracy, avg time)
+  - `getTopicWisePerformance` - Accuracy breakdown by topics
+  - `getDifficultyWisePerformance` - Performance by difficulty levels (easy/medium/hard)
+  - `getPerformanceTrend` - Score progression over time (last 10 tests)
+- **API Routes**:
+  - `/api/analytics/performance` - Overall performance stats
+  - `/api/analytics/topics` - Topic-wise analytics
+  - `/api/analytics/difficulty` - Difficulty-wise analytics
+  - `/api/analytics/trend` - Performance trend data
+  - `/api/analytics/history` - Test attempt history
+- **Dashboard Features**:
+  - **Overview Cards**: Total Tests, Average Score, Accuracy %, Average Time per Test
+  - **Performance Trend Chart**: Line chart showing score progression over time
+  - **Response Distribution**: Pie chart showing correct/incorrect/unanswered breakdown
+  - **Topic-wise Performance**: Bar chart showing accuracy across different topics
+  - **Difficulty-wise Performance**: Bar chart comparing performance on easy/medium/hard questions
+  - **Weak Areas Section**: Lists bottom 5 topics sorted by accuracy for focused improvement
+  - **Empty State Handling**: Graceful zero-state display for new users with no test attempts
+  - **Loading States**: Skeleton loaders for all data sections during fetch
+- **Data Visualization**: Using recharts library (LineChart, BarChart, PieChart)
+- **Routing**: `/analytics` route added with navigation links in user menu (desktop & mobile)
+- **Security**: All analytics endpoints protected with `requireAuth` middleware
+- **E2E Tested**: Verified empty state, stat cards, charts rendering, and navigation flows
+
 ### API Routes
 - `/api/auth/register` - User registration
 - `/api/auth/login` - User login
@@ -103,6 +130,7 @@ GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Ap
 - `/api/questions` - Question CRUD with filtering
 - `/api/tests` - Test management with pro tier support
 - `/api/attempts` - Test attempt tracking
+- `/api/analytics/*` - Analytics and performance tracking endpoints
 - `/api/discussions` - Community discussion forums
 
 ## Project Architecture
@@ -119,12 +147,14 @@ GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Ap
   - Authentication: /, /login, /register, /dashboard
   - Questions: /questions, /questions/:id, /questions/:id/edit, /questions/new
   - Tests: /tests, /tests/new, /tests/:id/edit, /tests/:id, /attempts/:id/results
+  - Analytics: /analytics
 - **client/src/contexts/AuthContext.tsx**: Authentication state management
 - **client/src/pages/**: Page components
   - Landing, Login, Register, Dashboard
   - Questions, QuestionDetail, QuestionForm (question management)
   - Tests, TestForm, TakeTest, TestResults (mock test engine)
-- **client/src/components/**: Reusable UI components (Navbar, etc.)
+  - Analytics (performance tracking dashboard)
+- **client/src/components/**: Reusable UI components (Navbar with Analytics link, etc.)
 
 ### Database Schema
 - Users with role-based access (student, moderator, admin)
@@ -153,11 +183,11 @@ None set yet.
 ## Next Steps
 1. ✅ ~~Build question bank management UI (admin panel)~~ - Completed
 2. ✅ ~~Build mock test engine with GATE-style interface~~ - Completed
-3. Create analytics and performance tracking
-4. Add payment integration with Razorpay
-5. Build community features UI
-6. Add email notifications
-7. Implement 2FA for enhanced security
-8. Add topic management UI for admins/moderators
+3. ✅ ~~Create analytics and performance tracking~~ - Completed
+4. Add topic management UI for admins/moderators
+5. Build community features UI (discussion forums)
+6. Add payment integration with Razorpay
+7. Add email notifications (SendGrid)
+8. Implement 2FA for enhanced security
 9. Implement question import/export functionality
 10. Add bulk question upload from CSV/Excel
