@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { passport, requireAuth, requireRole } from "./auth";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { 
   registerUserSchema, 
   updateUserProfileSchema,
@@ -330,7 +331,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Generate reset token (cryptographically secure random string)
-      const crypto = require("crypto");
       const resetToken = crypto.randomBytes(32).toString('hex');
       
       // Token expires in 1 hour
