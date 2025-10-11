@@ -12,7 +12,7 @@ import { Plus, Filter, BookOpen, Clock, BarChart } from "lucide-react";
 import type { Question, Topic } from "@shared/schema";
 
 export default function Questions() {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const { effectiveRole } = useViewAsRole();
   const [selectedTopic, setSelectedTopic] = useState<string>("all");
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
@@ -36,10 +36,12 @@ export default function Questions() {
       if (!response.ok) throw new Error("Failed to fetch questions");
       return response.json();
     },
+    enabled: !isAuthLoading, // Only fetch when auth is loaded
   });
 
   // All authenticated users (student, moderator, admin) can create questions
-  const canManageQuestions = !!user;
+  // Wait for auth to load before showing the button
+  const canManageQuestions = !isAuthLoading && !!user;
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {

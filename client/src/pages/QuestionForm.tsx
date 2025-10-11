@@ -168,7 +168,8 @@ export default function QuestionForm() {
     form.setValue("options", currentOptions.filter((_, i) => i !== index));
   };
 
-  if (!user || (user.role !== "admin" && user.role !== "moderator")) {
+  // All authenticated users can create/edit questions
+  if (!user) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-8">
         <div className="max-w-4xl mx-auto">
@@ -176,11 +177,11 @@ export default function QuestionForm() {
             <CardContent className="flex flex-col items-center justify-center py-12">
               <p className="text-lg font-medium text-foreground">Access Denied</p>
               <p className="text-sm text-muted-foreground mt-1">
-                You need admin or moderator privileges to manage questions
+                You need to be logged in to manage questions
               </p>
-              <Link href="/questions">
+              <Link href="/login">
                 <Button className="mt-4" variant="outline">
-                  Back to Questions
+                  Go to Login
                 </Button>
               </Link>
             </CardContent>
