@@ -15,6 +15,7 @@ import Tests from "@/pages/Tests";
 import TestForm from "@/pages/TestForm";
 import TakeTest from "@/pages/TakeTest";
 import TestResults from "@/pages/TestResults";
+import Analytics from "@/pages/Analytics";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/analytics" component={Analytics} />
       <Route path="/questions" component={Questions} />
       <Route path="/questions/new" component={QuestionForm} />
       <Route path="/questions/:id" component={QuestionDetail} />

@@ -116,6 +116,9 @@ export default function Navbar() {
                   <DropdownMenuItem onClick={() => setLocation("/tests")} data-testid="menu-tests">
                     My Tests
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLocation("/analytics")} data-testid="menu-analytics">
+                    Analytics
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setLocation("/profile")} data-testid="menu-profile">
                     Profile
                   </DropdownMenuItem>
@@ -170,6 +173,9 @@ export default function Navbar() {
                   </Link>
                   <Link href="/questions">
                     <span className="text-sm text-muted-foreground">Questions</span>
+                  </Link>
+                  <Link href="/analytics">
+                    <span className="text-sm text-muted-foreground">Analytics</span>
                   </Link>
                   <Button variant="outline" onClick={handleLogout} className="w-full">
                     Logout
