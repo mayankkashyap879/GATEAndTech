@@ -9,7 +9,7 @@ import { BookOpen, TrendingUp, Calendar, Users, Eye, FileQuestion, BarChart3, Me
 
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
-  const { viewAsRole, setViewAsRole } = useViewAsRole();
+  const { viewAsRole, setViewAsRole, effectiveRole } = useViewAsRole();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
@@ -128,15 +128,29 @@ export default function Dashboard() {
               </CardHeader>
             </Card>
             
-            <Card className="hover-elevate cursor-pointer" onClick={() => setLocation("/questions")} data-testid="card-quick-link-questions">
-              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                <div>
-                  <CardTitle className="text-base">Question Bank</CardTitle>
-                  <CardDescription className="mt-1">Browse and practice questions</CardDescription>
-                </div>
-                <FileQuestion className="h-6 w-6 text-primary" />
-              </CardHeader>
-            </Card>
+            {(effectiveRole === "admin" || effectiveRole === "moderator") && (
+              <Card className="hover-elevate cursor-pointer" onClick={() => setLocation("/questions")} data-testid="card-quick-link-questions">
+                <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Question Bank</CardTitle>
+                    <CardDescription className="mt-1">Create and manage exam questions</CardDescription>
+                  </div>
+                  <FileQuestion className="h-6 w-6 text-primary" />
+                </CardHeader>
+              </Card>
+            )}
+            
+            {effectiveRole === "student" && (
+              <Card className="hover-elevate cursor-pointer" onClick={() => setLocation("/discussions")} data-testid="card-quick-link-discussions">
+                <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Q&A Forum</CardTitle>
+                    <CardDescription className="mt-1">Ask doubts and get answers</CardDescription>
+                  </div>
+                  <MessageSquare className="h-6 w-6 text-primary" />
+                </CardHeader>
+              </Card>
+            )}
             
             <Card className="hover-elevate cursor-pointer" onClick={() => setLocation("/analytics")} data-testid="card-quick-link-analytics">
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">

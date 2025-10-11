@@ -3,6 +3,7 @@ import { Menu, User, LogOut } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useViewAsRole } from "@/contexts/ViewAsRoleContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +34,7 @@ function Logo() {
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
+  const { effectiveRole } = useViewAsRole();
   const [, setLocation] = useLocation();
 
   const handleLogout = async () => {
@@ -110,8 +112,13 @@ export default function Navbar() {
                   <DropdownMenuItem onClick={() => setLocation("/dashboard")} data-testid="menu-dashboard">
                     Dashboard
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setLocation("/questions")} data-testid="menu-questions">
-                    Questions
+                  {(effectiveRole === "admin" || effectiveRole === "moderator") && (
+                    <DropdownMenuItem onClick={() => setLocation("/questions")} data-testid="menu-questions">
+                      Question Bank
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => setLocation("/discussions")} data-testid="menu-discussions">
+                    Q&A Forum
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setLocation("/tests")} data-testid="menu-tests">
                     My Tests
@@ -171,8 +178,13 @@ export default function Navbar() {
                   <Link href="/dashboard">
                     <span className="text-sm text-muted-foreground">Dashboard</span>
                   </Link>
-                  <Link href="/questions">
-                    <span className="text-sm text-muted-foreground">Questions</span>
+                  {(effectiveRole === "admin" || effectiveRole === "moderator") && (
+                    <Link href="/questions">
+                      <span className="text-sm text-muted-foreground">Question Bank</span>
+                    </Link>
+                  )}
+                  <Link href="/discussions">
+                    <span className="text-sm text-muted-foreground">Q&A Forum</span>
                   </Link>
                   <Link href="/analytics">
                     <span className="text-sm text-muted-foreground">Analytics</span>

@@ -191,11 +191,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================================================
-  // QUESTION ROUTES
+  // QUESTION ROUTES (Admin/Moderator Only)
   // ============================================================================
 
-  // Get questions with filters
-  app.get("/api/questions", requireAuth, async (req: Request, res: Response) => {
+  // Get questions with filters (admin/moderator only)
+  app.get("/api/questions", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
     try {
       const filters = {
         topicId: req.query.topicId as string,
@@ -212,8 +212,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get single question
-  app.get("/api/questions/:id", requireAuth, async (req: Request, res: Response) => {
+  // Get single question (admin/moderator only)
+  app.get("/api/questions/:id", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
     try {
       const question = await storage.getQuestion(req.params.id);
       if (!question) {
@@ -230,8 +230,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create question (all authenticated users)
-  app.post("/api/questions", requireAuth, async (req: Request, res: Response) => {
+  // Create question (admin/moderator only)
+  app.post("/api/questions", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
     try {
       const currentUser = req.user as any;
       const { topicId, ...questionData } = req.body;
@@ -258,33 +258,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update question (owner, admin, or moderator)
-  app.patch("/api/questions/:id", requireAuth, async (req: Request, res: Response) => {
+  // Update question (admin/moderator only)
+  app.patch("/api/questions/:id", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
     try {
       const currentUser = req.user as any;
       const { topicId, ...questionData } = req.body;
       
-      // Fetch existing question to check ownership
+      // Fetch existing question to check if it exists
       const existingQuestion = await storage.getQuestion(req.params.id);
       if (!existingQuestion) {
         return res.status(404).json({ error: "Question not found" });
       }
       
-      // Check authorization: admin/moderator can edit any question, students can only edit their own
-      const isAdminOrModerator = currentUser.role === "admin" || currentUser.role === "moderator";
-      const isOwner = existingQuestion.createdBy === currentUser.id;
-      
-      if (!isAdminOrModerator && !isOwner) {
-        return res.status(403).json({ error: "You can only edit questions you created" });
-      }
-      
       // Validate update data - only allow safe fields to be modified
       const validatedData = updateQuestionSchema.parse(questionData);
-      
-      // Check topic authorization BEFORE making any changes
-      if (topicId && !isAdminOrModerator) {
-        return res.status(403).json({ error: "Only admins and moderators can change question topics" });
-      }
       
       // Update question fields
       const question = await storage.updateQuestion(req.params.id, validatedData);
@@ -292,8 +279,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Question not found" });
       }
       
-      // Update topic association if authorized and topicId is provided
-      if (topicId && isAdminOrModerator) {
+      // Update topic association if topicId is provided
+      if (topicId) {
         // Remove existing topics and add new one
         const existingTopics = await storage.getQuestionTopics(req.params.id);
         for (const topic of existingTopics) {

@@ -17,6 +17,8 @@ import TestForm from "@/pages/TestForm";
 import TakeTest from "@/pages/TakeTest";
 import TestResults from "@/pages/TestResults";
 import Analytics from "@/pages/Analytics";
+import Discussions from "@/pages/Discussions";
+import ThreadDetail from "@/pages/ThreadDetail";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -27,6 +29,8 @@ function Router() {
       <Route path="/register" component={Register} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/analytics" component={Analytics} />
+      <Route path="/discussions" component={Discussions} />
+      <Route path="/discussions/:id" component={ThreadDetail} />
       <Route path="/questions" component={Questions} />
       <Route path="/questions/new" component={QuestionForm} />
       <Route path="/questions/:id" component={QuestionDetail} />
