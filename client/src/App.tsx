@@ -8,6 +8,8 @@ import { ViewAsRoleProvider } from "@/contexts/ViewAsRoleContext";
 import LandingPage from "@/pages/LandingPage";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import Dashboard from "@/pages/Dashboard";
 import Security from "@/pages/Security";
 import Questions from "@/pages/Questions";
@@ -28,6 +30,8 @@ function Router() {
       <Route path="/" component={LandingPage} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/security" component={Security} />
       <Route path="/analytics" component={Analytics} />

@@ -2,6 +2,7 @@
 import { 
   users, 
   sessions,
+  verificationTokens,
   questions,
   topics,
   questionTopics,
@@ -17,6 +18,8 @@ import {
   type InsertUser,
   type Session,
   type InsertSession,
+  type VerificationToken,
+  type InsertVerificationToken,
   type Question,
   type InsertQuestion,
   type Topic,
@@ -56,6 +59,12 @@ export interface IStorage {
   getSession(token: string): Promise<Session | undefined>;
   deleteSession(token: string): Promise<void>;
   deleteUserSessions(userId: string): Promise<void>;
+  
+  // Password Reset Token operations
+  createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<VerificationToken>;
+  getPasswordResetToken(token: string): Promise<VerificationToken | undefined>;
+  deletePasswordResetToken(token: string): Promise<void>;
+  deleteUserPasswordResetTokens(userId: string): Promise<void>;
   
   // Question operations
   getQuestion(id: string): Promise<Question | undefined>;
@@ -279,6 +288,58 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUserSessions(userId: string): Promise<void> {
     await db.delete(sessions).where(eq(sessions.userId, userId));
+  }
+
+  // ============================================================================
+  // PASSWORD RESET TOKEN OPERATIONS
+  // ============================================================================
+
+  async createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<VerificationToken> {
+    const [resetToken] = await db
+      .insert(verificationTokens)
+      .values({
+        userId,
+        token,
+        type: 'password_reset',
+        expiresAt,
+      })
+      .returning();
+    return resetToken;
+  }
+
+  async getPasswordResetToken(token: string): Promise<VerificationToken | undefined> {
+    const [resetToken] = await db
+      .select()
+      .from(verificationTokens)
+      .where(
+        and(
+          eq(verificationTokens.token, token),
+          eq(verificationTokens.type, 'password_reset')
+        )
+      );
+    return resetToken || undefined;
+  }
+
+  async deletePasswordResetToken(token: string): Promise<void> {
+    await db
+      .delete(verificationTokens)
+      .where(
+        and(
+          eq(verificationTokens.token, token),
+          eq(verificationTokens.type, 'password_reset')
+        )
+      );
+  }
+
+  async deleteUserPasswordResetTokens(userId: string): Promise<void> {
+    await db
+      .delete(verificationTokens)
+      .where(
+        and(
+          eq(verificationTokens.userId, userId),
+          eq(verificationTokens.type, 'password_reset')
+        )
+      );
   }
 
   // ============================================================================
