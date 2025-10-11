@@ -8,7 +8,7 @@ import { testRoutes } from "./test.routes";
 import { discussionRoutes } from "./discussion.routes";
 import { analyticsRoutes } from "./analytics.routes";
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export function registerRoutes(app: Express): Server {
   // Register all route modules
   authRoutes(app);
   userRoutes(app);
@@ -18,6 +18,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   discussionRoutes(app);
   analyticsRoutes(app);
 
+  // Create and return HTTP server (maintained for compatibility with server/index.ts)
   const httpServer = createServer(app);
   return httpServer;
 }

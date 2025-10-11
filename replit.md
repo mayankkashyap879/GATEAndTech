@@ -28,7 +28,15 @@ The platform features a clean, responsive design using `shadcn/ui` components an
 - **Security**: Strict schema validation, role-based middleware, password hashing (bcrypt), and secure session management.
 
 ### System Design Choices
-- **Backend**: Node.js with Express.js for RESTful API services.
+- **Backend**: Node.js with Express.js for RESTful API services. Routes are modularized by domain for maintainability:
+  - `server/routes/auth.routes.ts` - Authentication, OAuth, 2FA, password reset
+  - `server/routes/user.routes.ts` - User profile management
+  - `server/routes/topic.routes.ts` - Topic operations
+  - `server/routes/question.routes.ts` - Question bank management
+  - `server/routes/test.routes.ts` - Test and test attempt operations
+  - `server/routes/discussion.routes.ts` - Discussion forum
+  - `server/routes/analytics.routes.ts` - Performance analytics
+  - `server/routes/index.ts` - Route aggregator
 - **Frontend**: React.js with Vite for a fast and reactive user interface.
 - **Database**: PostgreSQL for robust data storage, managed with Drizzle ORM for type-safe interactions.
 - **State Management**: React Context API for authentication, TanStack Query for data fetching and caching.
