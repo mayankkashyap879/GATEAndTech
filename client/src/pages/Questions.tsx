@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useViewAsRole } from "@/contexts/ViewAsRoleContext";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import type { Question, Topic } from "@shared/schema";
 
 export default function Questions() {
   const { user } = useAuth();
+  const { effectiveRole } = useViewAsRole();
   const [selectedTopic, setSelectedTopic] = useState<string>("all");
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
@@ -36,7 +38,8 @@ export default function Questions() {
     },
   });
 
-  const canManageQuestions = user?.role === "admin" || user?.role === "moderator";
+  // All authenticated users (student, moderator, admin) can create questions
+  const canManageQuestions = !!user;
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {

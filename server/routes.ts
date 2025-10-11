@@ -224,8 +224,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create question (moderator/admin only)
-  app.post("/api/questions", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
+  // Create question (all authenticated users)
+  app.post("/api/questions", requireAuth, async (req: Request, res: Response) => {
     try {
       const currentUser = req.user as any;
       const { topicId, ...questionData } = req.body;
@@ -252,8 +252,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update question (moderator/admin only)
-  app.patch("/api/questions/:id", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
+  // Update question (all authenticated users)
+  app.patch("/api/questions/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const { topicId, ...questionData } = req.body;
       
