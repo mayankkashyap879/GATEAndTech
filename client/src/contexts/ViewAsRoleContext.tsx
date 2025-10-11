@@ -20,8 +20,14 @@ export function ViewAsRoleProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  // Effective role is the viewAsRole if admin, otherwise use actual user role
-  const effectiveRole = user?.role === "admin" ? viewAsRole : (user?.role || "student");
+  // Effective role logic:
+  // - Admin can view as: admin, moderator, student
+  // - Moderator can view as: moderator, student
+  // - Student can only view as: student
+  const effectiveRole = 
+    user?.role === "admin" ? viewAsRole : 
+    user?.role === "moderator" ? viewAsRole :
+    (user?.role || "student");
 
   return (
     <ViewAsRoleContext.Provider value={{ viewAsRole, setViewAsRole, effectiveRole }}>

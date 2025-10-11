@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocation } from "wouter";
-import { BookOpen, TrendingUp, Calendar, Users, Eye } from "lucide-react";
+import { BookOpen, TrendingUp, Calendar, Users, Eye, FileQuestion, BarChart3, MessageSquare } from "lucide-react";
 
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
@@ -63,8 +63,8 @@ export default function Dashboard() {
             </p>
           </div>
           
-          {/* Role Switcher (Admin Only) */}
-          {user.role === "admin" && (
+          {/* Role Switcher (Admin and Moderator) */}
+          {(user.role === "admin" || user.role === "moderator") && (
             <div className="flex items-center gap-2 mr-4">
               <Eye className="h-4 w-4 text-muted-foreground" />
               <Select value={viewAsRole} onValueChange={setViewAsRole}>
@@ -72,7 +72,9 @@ export default function Dashboard() {
                   <SelectValue placeholder="View as..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin" data-testid="option-view-as-admin">Admin</SelectItem>
+                  {user.role === "admin" && (
+                    <SelectItem value="admin" data-testid="option-view-as-admin">Admin</SelectItem>
+                  )}
                   <SelectItem value="moderator" data-testid="option-view-as-moderator">Moderator</SelectItem>
                   <SelectItem value="student" data-testid="option-view-as-student">Student</SelectItem>
                 </SelectContent>
@@ -110,6 +112,42 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* Quick Links */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Quick Links</h2>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card className="hover-elevate cursor-pointer" onClick={() => setLocation("/tests")} data-testid="card-quick-link-tests">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <div>
+                  <CardTitle className="text-base">Mock Tests</CardTitle>
+                  <CardDescription className="mt-1">Practice with full-length tests</CardDescription>
+                </div>
+                <BookOpen className="h-6 w-6 text-primary" />
+              </CardHeader>
+            </Card>
+            
+            <Card className="hover-elevate cursor-pointer" onClick={() => setLocation("/questions")} data-testid="card-quick-link-questions">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <div>
+                  <CardTitle className="text-base">Question Bank</CardTitle>
+                  <CardDescription className="mt-1">Browse and practice questions</CardDescription>
+                </div>
+                <FileQuestion className="h-6 w-6 text-primary" />
+              </CardHeader>
+            </Card>
+            
+            <Card className="hover-elevate cursor-pointer" onClick={() => setLocation("/analytics")} data-testid="card-quick-link-analytics">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <div>
+                  <CardTitle className="text-base">Analytics</CardTitle>
+                  <CardDescription className="mt-1">Track your performance</CardDescription>
+                </div>
+                <BarChart3 className="h-6 w-6 text-primary" />
+              </CardHeader>
+            </Card>
+          </div>
         </div>
 
         {/* Recent Activity */}

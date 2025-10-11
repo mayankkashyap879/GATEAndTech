@@ -1,4 +1,5 @@
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import HeroSection from "@/components/HeroSection";
 import YouTubeSection from "@/components/YouTubeSection";
 import QuizDemo from "@/components/QuizDemo";
@@ -22,6 +23,7 @@ export default function LandingPage() {
         <FAQSection />
         <EmailSignupSection />
       </main>
+      <Footer />
     </div>
   );
 }
