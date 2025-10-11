@@ -40,6 +40,41 @@ GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Ap
   - Publish/draft status control
 - Admin/moderator-only question creation and editing with proper access control
 - Integrated question management into navigation menu
+- Fixed topic filtering bug by properly joining questionTopics table
+
+### Mock Test Engine (✅ Completed)
+- Built complete GATE-style exam interface with real-time response persistence
+- **Backend API Routes**:
+  - Test CRUD operations (create, read, update, delete)
+  - Test attempt management with score calculation
+  - Response upsert logic to handle answer changes without duplicates
+  - Automatic score calculation with negative marking support
+- **Test Creation & Management**:
+  - Admin/moderator test creation form with question selection
+  - Test editing capabilities with duration and marks configuration
+  - Pro tier support for premium tests
+  - Scheduling with start/end dates
+- **Tests Browse Page**:
+  - List all available tests with filtering (free/pro, active/upcoming/past)
+  - Test card display with metadata (questions, duration, marks)
+  - Start test functionality for students
+- **Test Taking Interface**:
+  - GATE-style exam interface with timer and question navigation
+  - Real-time response persistence to backend (saves on every answer change)
+  - Support for all question types (MCQ single/multiple, numerical)
+  - Mark for review functionality
+  - Question palette with color-coded status
+  - Clear answer capability with proper backend updates
+- **Test Results Page**:
+  - Detailed score display with percentage and performance metrics
+  - Question-by-question review with correct answers
+  - Performance analytics (correct, incorrect, unanswered counts)
+  - Explanations for all questions
+- **Critical Bug Fixes**:
+  - Fixed response persistence during test-taking
+  - Implemented upsert pattern to prevent duplicate responses
+  - Added proper handling for cleared/empty answers (treated as unanswered)
+  - Accurate score calculation with negative marking only for incorrect attempts
 
 ### API Routes
 - `/api/auth/register` - User registration
@@ -63,11 +98,15 @@ GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Ap
 - **server/db.ts**: Database connection setup
 
 ### Frontend (React + Vite)
-- **client/src/App.tsx**: Main app with routing (/, /login, /register, /dashboard, /questions, /questions/:id, /questions/:id/edit, /questions/new)
+- **client/src/App.tsx**: Main app with routing
+  - Authentication: /, /login, /register, /dashboard
+  - Questions: /questions, /questions/:id, /questions/:id/edit, /questions/new
+  - Tests: /tests, /tests/new, /tests/:id/edit, /tests/:id/take, /tests/:id/results
 - **client/src/contexts/AuthContext.tsx**: Authentication state management
 - **client/src/pages/**: Page components
   - Landing, Login, Register, Dashboard
   - Questions, QuestionDetail, QuestionForm (question management)
+  - Tests, TestForm, TakeTest, TestResults (mock test engine)
 - **client/src/components/**: Reusable UI components (Navbar, etc.)
 
 ### Database Schema
@@ -96,7 +135,7 @@ None set yet.
 
 ## Next Steps
 1. ✅ ~~Build question bank management UI (admin panel)~~ - Completed
-2. Build mock test engine with GATE-style interface
+2. ✅ ~~Build mock test engine with GATE-style interface~~ - Completed
 3. Create analytics and performance tracking
 4. Add payment integration with Razorpay
 5. Build community features UI
