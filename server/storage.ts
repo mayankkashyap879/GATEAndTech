@@ -95,6 +95,7 @@ export interface IStorage {
   createTestResponse(response: InsertTestResponse): Promise<TestResponse>;
   updateTestResponse(id: string, data: Partial<InsertTestResponse>): Promise<TestResponse | undefined>;
   getTestAttemptResponses(attemptId: string): Promise<TestResponse[]>;
+  getTestResponse(attemptId: string, questionId: string): Promise<TestResponse | undefined>;
   
   // Subscription operations
   getUserSubscription(userId: string): Promise<Subscription | undefined>;
@@ -436,6 +437,17 @@ export class DatabaseStorage implements IStorage {
       .from(testResponses)
       .where(eq(testResponses.attemptId, attemptId))
       .orderBy(asc(testResponses.createdAt));
+  }
+
+  async getTestResponse(attemptId: string, questionId: string): Promise<TestResponse | undefined> {
+    const [response] = await db
+      .select()
+      .from(testResponses)
+      .where(and(
+        eq(testResponses.attemptId, attemptId),
+        eq(testResponses.questionId, questionId)
+      ));
+    return response || undefined;
   }
 
   // ============================================================================

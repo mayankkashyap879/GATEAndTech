@@ -11,6 +11,10 @@ import Dashboard from "@/pages/Dashboard";
 import Questions from "@/pages/Questions";
 import QuestionDetail from "@/pages/QuestionDetail";
 import QuestionForm from "@/pages/QuestionForm";
+import Tests from "@/pages/Tests";
+import TestForm from "@/pages/TestForm";
+import TakeTest from "@/pages/TakeTest";
+import TestResults from "@/pages/TestResults";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,6 +28,11 @@ function Router() {
       <Route path="/questions/new" component={QuestionForm} />
       <Route path="/questions/:id" component={QuestionDetail} />
       <Route path="/questions/:id/edit" component={QuestionForm} />
+      <Route path="/tests" component={Tests} />
+      <Route path="/tests/new" component={TestForm} />
+      <Route path="/tests/:id/edit" component={TestForm} />
+      <Route path="/tests/:id" component={TakeTest} />
+      <Route path="/attempts/:id/results" component={TestResults} />
       <Route component={NotFound} />
     </Switch>
   );

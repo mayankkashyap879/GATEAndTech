@@ -493,10 +493,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Forbidden" });
       }
       
+      // Get test and questions
+      const test = await storage.getTest(attempt.testId);
+      const questions = await storage.getTestQuestions(attempt.testId);
+      const responses = await storage.getTestAttemptResponses(req.params.id);
+      
+      // Calculate score
+      let totalScore = 0;
+      for (const response of responses) {
+        const question = questions.find(q => q.id === response.questionId);
+        if (!question) continue;
+        
+        let isCorrect = false;
+        let marksAwarded = 0;
+        
+        // Skip scoring if answer is empty/cleared (unanswered)
+        if (!response.selectedAnswer || response.selectedAnswer.trim() === "") {
+          // Update response as unanswered
+          await storage.updateTestResponse(response.id, {
+            isCorrect: false,
+            marksAwarded: 0,
+          });
+          continue;
+        }
+        
+        if (question.type === "numerical") {
+          isCorrect = response.selectedAnswer === question.correctAnswer;
+          marksAwarded = isCorrect ? question.marks : -question.negativeMarks;
+        } else if (question.type === "mcq_single") {
+          const correctOption = (question.options as any)?.find((opt: any) => opt.isCorrect);
+          isCorrect = response.selectedAnswer === correctOption?.id;
+          marksAwarded = isCorrect ? question.marks : -question.negativeMarks;
+        } else if (question.type === "mcq_multiple") {
+          const correctOptions = (question.options as any)?.filter((opt: any) => opt.isCorrect).map((opt: any) => opt.id).sort().join(",");
+          const selectedOptions = response.selectedAnswer?.split(",").filter(Boolean).sort().join(",");
+          isCorrect = selectedOptions === correctOptions;
+          marksAwarded = isCorrect ? question.marks : -question.negativeMarks;
+        }
+        
+        // Update response with correctness and marks
+        await storage.updateTestResponse(response.id, {
+          isCorrect,
+          marksAwarded,
+        });
+        
+        totalScore += marksAwarded;
+      }
+      
       const updatedAttempt = await storage.updateTestAttempt(req.params.id, {
         status: "submitted",
         submittedAt: new Date(),
-        ...req.body,
+        score: totalScore,
+        maxScore: test?.totalMarks || 0,
+        timeTaken: req.body.timeTaken,
       });
       
       res.json(updatedAttempt);
@@ -528,7 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Save test response
+  // Save test response (upsert)
   app.post("/api/attempts/:id/responses", requireAuth, async (req: Request, res: Response) => {
     try {
       const currentUser = req.user as any;
@@ -548,15 +597,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { questionId, selectedAnswer, isMarkedForReview, timeTaken } = req.body;
       
-      const response = await storage.createTestResponse({
-        attemptId: req.params.id,
-        questionId,
-        selectedAnswer,
-        isMarkedForReview,
-        timeTaken,
-      });
+      // Check if response already exists
+      const existingResponse = await storage.getTestResponse(req.params.id, questionId);
       
-      res.status(201).json(response);
+      let response;
+      if (existingResponse) {
+        // Update existing response
+        response = await storage.updateTestResponse(existingResponse.id, {
+          selectedAnswer,
+          isMarkedForReview,
+          timeTaken,
+        });
+      } else {
+        // Create new response
+        response = await storage.createTestResponse({
+          attemptId: req.params.id,
+          questionId,
+          selectedAnswer,
+          isMarkedForReview,
+          timeTaken,
+        });
+      }
+      
+      res.status(200).json(response);
     } catch (error) {
       console.error("Error saving response:", error);
       res.status(500).json({ error: "Internal server error" });
