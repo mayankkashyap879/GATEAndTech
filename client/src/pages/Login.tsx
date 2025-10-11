@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
 import { LogIn } from "lucide-react";
+import { SiGoogle, SiGithub } from "react-icons/si";
 import Footer from "@/components/Footer";
 
 export default function Login() {
@@ -88,6 +90,39 @@ export default function Login() {
               >
                 {isLoading ? "Logging in..." : "Login"}
               </Button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <Separator className="w-full" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => window.location.href = '/api/auth/google'}
+                  data-testid="button-google-login"
+                >
+                  <SiGoogle className="mr-2 h-4 w-4" />
+                  Google
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => window.location.href = '/api/auth/github'}
+                  data-testid="button-github-login"
+                >
+                  <SiGithub className="mr-2 h-4 w-4" />
+                  GitHub
+                </Button>
+              </div>
+
               <div className="text-sm text-center text-muted-foreground">
                 Don't have an account?{" "}
                 <Link href="/register" data-testid="link-register">

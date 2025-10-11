@@ -1,5 +1,7 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { Strategy as GitHubStrategy } from "passport-github2";
 import bcrypt from "bcrypt";
 import { storage } from "./storage";
 import type { User } from "@shared/schema";
@@ -37,6 +39,77 @@ passport.use(
     }
   )
 );
+
+// Configure Google OAuth Strategy
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: "/api/auth/google/callback",
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          const email = profile.emails?.[0]?.value;
+          const avatar = profile.photos?.[0]?.value;
+          
+          if (!email) {
+            return done(new Error("No email from Google"), undefined);
+          }
+
+          const user = await storage.upsertOAuthUser({
+            email,
+            name: profile.displayName || email.split('@')[0],
+            authProvider: "google",
+            providerId: profile.id,
+            avatar,
+          });
+
+          return done(null, user);
+        } catch (error) {
+          return done(error as Error, undefined);
+        }
+      }
+    )
+  );
+}
+
+// Configure GitHub OAuth Strategy
+if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
+  passport.use(
+    new GitHubStrategy(
+      {
+        clientID: process.env.GITHUB_CLIENT_ID,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET,
+        callbackURL: "/api/auth/github/callback",
+        scope: ['user:email'],
+      },
+      async (accessToken: string, refreshToken: string, profile: any, done: any) => {
+        try {
+          const email = profile.emails?.[0]?.value;
+          const avatar = profile.photos?.[0]?.value;
+          
+          if (!email) {
+            return done(new Error("No email from GitHub"), undefined);
+          }
+
+          const user = await storage.upsertOAuthUser({
+            email,
+            name: profile.displayName || profile.username || email.split('@')[0],
+            authProvider: "github",
+            providerId: profile.id,
+            avatar,
+          });
+
+          return done(null, user);
+        } catch (error) {
+          return done(error as Error, undefined);
+        }
+      }
+    )
+  );
+}
 
 // Serialize user to session
 passport.serializeUser((user: Express.User, done) => {

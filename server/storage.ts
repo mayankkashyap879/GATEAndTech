@@ -43,6 +43,13 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, data: Partial<InsertUser>): Promise<User | undefined>;
+  upsertOAuthUser(data: {
+    email: string;
+    name: string;
+    authProvider: "google" | "github";
+    providerId: string;
+    avatar?: string;
+  }): Promise<User>;
   
   // Session operations
   createSession(session: InsertSession): Promise<Session>;
@@ -176,6 +183,74 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return user || undefined;
+  }
+
+  async upsertOAuthUser(data: {
+    email: string;
+    name: string;
+    authProvider: "google" | "github";
+    providerId: string;
+    avatar?: string;
+  }): Promise<User> {
+    // Check if user exists with this provider
+    const existingUser = await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.authProvider, data.authProvider),
+          eq(users.providerId, data.providerId)
+        )
+      )
+      .limit(1);
+
+    if (existingUser.length > 0) {
+      // Update existing user
+      const [user] = await db
+        .update(users)
+        .set({
+          name: data.name,
+          avatar: data.avatar,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, existingUser[0].id))
+        .returning();
+      return user;
+    }
+
+    // Check if email already exists (user signed up with email/password)
+    const userByEmail = await this.getUserByEmail(data.email);
+    if (userByEmail) {
+      // Link OAuth provider to existing account
+      const [user] = await db
+        .update(users)
+        .set({
+          authProvider: data.authProvider,
+          providerId: data.providerId,
+          avatar: data.avatar || userByEmail.avatar,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userByEmail.id))
+        .returning();
+      return user;
+    }
+
+    // Create new user
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        email: data.email,
+        name: data.name,
+        authProvider: data.authProvider,
+        providerId: data.providerId,
+        avatar: data.avatar,
+        role: "student",
+        theme: "system",
+        currentPlan: "free",
+        twofaEnabled: false,
+      })
+      .returning();
+    return newUser;
   }
 
   // ============================================================================

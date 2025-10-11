@@ -104,6 +104,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ user: userWithoutPassword });
   });
 
+  // OAuth Routes - Google
+  app.get("/api/auth/google", passport.authenticate("google", { scope: ["profile", "email"] }));
+  
+  app.get("/api/auth/google/callback", 
+    passport.authenticate("google", { 
+      failureRedirect: "/login",
+      successRedirect: "/dashboard"
+    })
+  );
+
+  // OAuth Routes - GitHub  
+  app.get("/api/auth/github", passport.authenticate("github", { scope: ["user:email"] }));
+  
+  app.get("/api/auth/github/callback",
+    passport.authenticate("github", { 
+      failureRedirect: "/login",
+      successRedirect: "/dashboard"
+    })
+  );
+
   // ============================================================================
   // USER ROUTES
   // ============================================================================
