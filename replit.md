@@ -218,9 +218,27 @@ None set yet.
 2. ✅ ~~Build mock test engine with GATE-style interface~~ - Completed
 3. ✅ ~~Create analytics and performance tracking~~ - Completed
 4. Add topic management UI for admins/moderators
-5. Build community features UI (discussion forums)
+5. ✅ ~~Build community features UI (discussion forums)~~ - Completed
 6. Add payment integration with Razorpay
 7. Add email notifications (SendGrid)
 8. Implement 2FA for enhanced security
 9. Implement question import/export functionality
 10. Add bulk question upload from CSV/Excel
+
+## Latest Updates (Completed)
+
+### Question Bank Access Restriction (✅ October 11, 2025)
+- **RESTRICTED TO ADMIN/MODERATOR ONLY**: Question Bank now completely inaccessible to students
+- Backend: All `/api/questions/*` routes protected with `requireRole("admin", "moderator")`
+- Frontend: Question Bank navigation hidden from students using `effectiveRole` check
+- Dashboard Quick Links: Admin/Moderator see Question Bank, Students see Q&A Forum
+- E2E Tested: Access control verified for all roles
+
+### Discussion Forum - Q&A System (✅ October 11, 2025)
+- Built Q&A forum for all authenticated users to ask doubts and get answers
+- Pages: `/discussions` (list threads), `/discussions/:id` (thread detail)
+- Features: Thread creation, answer posting, view counts, user avatars
+- API Routes: GET/POST `/api/discussions`, GET/POST `/api/discussions/:id/posts`
+- Navigation: "Q&A Forum" link added to user menu for all users
+- Clear separation: Question Bank (exam questions, admin/moderator) vs Q&A Forum (student doubts, all users)
+- E2E Tested: Thread creation, answer posting, role-based access verified
