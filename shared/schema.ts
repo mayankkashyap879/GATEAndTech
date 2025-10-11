@@ -418,9 +418,38 @@ export const insertUserSchema = createInsertSchema(users, {
   passwordHash: z.string().optional(),
 }).omit({ id: true, createdAt: true, updatedAt: true });
 
+// Registration schema - only allows user-provided fields
+export const registerUserSchema = z.object({
+  name: z.string().min(2).max(100),
+  email: z.string().email(),
+  password: z.string().min(6),
+});
+
+// User profile update schema - only safe fields users can modify
+export const updateUserProfileSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  avatar: z.string().url().optional().nullable(),
+  theme: themeEnum.optional(),
+});
+
+// Admin-only user update schema
+export const adminUpdateUserSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  email: z.string().email().optional(),
+  avatar: z.string().url().optional().nullable(),
+  theme: themeEnum.optional(),
+  role: roleEnum.optional(),
+  currentPlan: planTypeEnum.optional(),
+  twofaEnabled: z.boolean().optional(),
+});
+
 export const selectUserSchema = createSelectSchema(users);
 
-export const updateUserSchema = insertUserSchema.partial();
+export const updateUserSchema = insertUserSchema.partial().omit({ 
+  role: true, 
+  authProvider: true, 
+  providerId: true 
+});
 
 // Question schemas
 export const insertQuestionSchema = createInsertSchema(questions, {
