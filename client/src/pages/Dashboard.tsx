@@ -1,12 +1,15 @@
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useViewAsRole } from "@/contexts/ViewAsRoleContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocation } from "wouter";
-import { BookOpen, TrendingUp, Calendar, Users } from "lucide-react";
+import { BookOpen, TrendingUp, Calendar, Users, Eye } from "lucide-react";
 
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
+  const { viewAsRole, setViewAsRole } = useViewAsRole();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
@@ -51,7 +54,7 @@ export default function Dashboard() {
       <div className="container mx-auto p-6 space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             <h1 className="text-3xl font-bold" data-testid="text-dashboard-title">
               Welcome back, {user.name}!
             </h1>
@@ -59,6 +62,24 @@ export default function Dashboard() {
               Track your progress and prepare for GATE
             </p>
           </div>
+          
+          {/* Role Switcher (Admin Only) */}
+          {user.role === "admin" && (
+            <div className="flex items-center gap-2 mr-4">
+              <Eye className="h-4 w-4 text-muted-foreground" />
+              <Select value={viewAsRole} onValueChange={setViewAsRole}>
+                <SelectTrigger className="w-[160px]" data-testid="select-view-as-role">
+                  <SelectValue placeholder="View as..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin" data-testid="option-view-as-admin">Admin</SelectItem>
+                  <SelectItem value="moderator" data-testid="option-view-as-moderator">Moderator</SelectItem>
+                  <SelectItem value="student" data-testid="option-view-as-student">Student</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          
           <div className="flex gap-2">
             <Button onClick={() => setLocation("/tests")} data-testid="button-browse-tests">
               Browse Tests
