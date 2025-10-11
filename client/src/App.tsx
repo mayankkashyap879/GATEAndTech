@@ -8,6 +8,9 @@ import LandingPage from "@/pages/LandingPage";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
+import Questions from "@/pages/Questions";
+import QuestionDetail from "@/pages/QuestionDetail";
+import QuestionForm from "@/pages/QuestionForm";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -17,6 +20,10 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/questions" component={Questions} />
+      <Route path="/questions/new" component={QuestionForm} />
+      <Route path="/questions/:id" component={QuestionDetail} />
+      <Route path="/questions/:id/edit" component={QuestionForm} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -213,7 +213,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!question) {
         return res.status(404).json({ error: "Question not found" });
       }
-      res.json(question);
+      
+      // Get associated topics
+      const topics = await storage.getQuestionTopics(req.params.id);
+      
+      res.json({ ...question, topics });
     } catch (error) {
       console.error("Error fetching question:", error);
       res.status(500).json({ error: "Internal server error" });
@@ -224,12 +228,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/questions", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
     try {
       const currentUser = req.user as any;
+      const { topicId, ...questionData } = req.body;
+      
       const validatedData = insertQuestionSchema.parse({
-        ...req.body,
+        ...questionData,
         createdBy: currentUser.id,
       });
       
       const question = await storage.createQuestion(validatedData);
+      
+      // Associate with topic if provided
+      if (topicId) {
+        await storage.addQuestionTopic(question.id, topicId);
+      }
+      
       res.status(201).json(question);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -243,10 +255,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update question (moderator/admin only)
   app.patch("/api/questions/:id", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
     try {
-      const question = await storage.updateQuestion(req.params.id, req.body);
+      const { topicId, ...questionData } = req.body;
+      
+      const question = await storage.updateQuestion(req.params.id, questionData);
       if (!question) {
         return res.status(404).json({ error: "Question not found" });
       }
+      
+      // Update topic association if provided
+      if (topicId) {
+        // Remove existing topics and add new one
+        const existingTopics = await storage.getQuestionTopics(req.params.id);
+        for (const topic of existingTopics) {
+          await storage.removeQuestionTopic(req.params.id, topic.id);
+        }
+        await storage.addQuestionTopic(req.params.id, topicId);
+      }
+      
       res.json(question);
     } catch (error) {
       console.error("Error updating question:", error);

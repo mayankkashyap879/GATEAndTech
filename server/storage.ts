@@ -62,6 +62,9 @@ export interface IStorage {
   createQuestion(question: InsertQuestion): Promise<Question>;
   updateQuestion(id: string, data: Partial<InsertQuestion>): Promise<Question | undefined>;
   deleteQuestion(id: string): Promise<void>;
+  addQuestionTopic(questionId: string, topicId: string): Promise<void>;
+  removeQuestionTopic(questionId: string, topicId: string): Promise<void>;
+  getQuestionTopics(questionId: string): Promise<Topic[]>;
   
   // Topic operations
   getTopic(id: string): Promise<Topic | undefined>;
@@ -184,6 +187,30 @@ export class DatabaseStorage implements IStorage {
     limit?: number;
     offset?: number;
   }): Promise<Question[]> {
+    // If filtering by topic, use a join
+    if (filters?.topicId) {
+      const conditions = [eq(questions.isPublished, true), eq(questionTopics.topicId, filters.topicId)];
+
+      if (filters?.difficulty) {
+        conditions.push(eq(questions.difficulty, filters.difficulty as any));
+      }
+
+      if (filters?.type) {
+        conditions.push(eq(questions.type, filters.type as any));
+      }
+
+      const results = await db
+        .select({ question: questions })
+        .from(questionTopics)
+        .innerJoin(questions, eq(questionTopics.questionId, questions.id))
+        .where(and(...conditions))
+        .limit(filters?.limit || 50)
+        .offset(filters?.offset || 0);
+
+      return results.map(r => r.question);
+    }
+
+    // Otherwise, simple query without join
     const conditions = [eq(questions.isPublished, true)];
 
     if (filters?.difficulty) {
@@ -220,6 +247,27 @@ export class DatabaseStorage implements IStorage {
 
   async deleteQuestion(id: string): Promise<void> {
     await db.delete(questions).where(eq(questions.id, id));
+  }
+
+  async addQuestionTopic(questionId: string, topicId: string): Promise<void> {
+    await db.insert(questionTopics).values({ questionId, topicId });
+  }
+
+  async removeQuestionTopic(questionId: string, topicId: string): Promise<void> {
+    await db.delete(questionTopics)
+      .where(and(
+        eq(questionTopics.questionId, questionId),
+        eq(questionTopics.topicId, topicId)
+      ));
+  }
+
+  async getQuestionTopics(questionId: string): Promise<Topic[]> {
+    const results = await db
+      .select({ topic: topics })
+      .from(questionTopics)
+      .innerJoin(topics, eq(questionTopics.topicId, topics.id))
+      .where(eq(questionTopics.questionId, questionId));
+    return results.map(r => r.topic);
   }
 
   // ============================================================================

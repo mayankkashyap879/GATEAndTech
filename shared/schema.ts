@@ -429,7 +429,7 @@ export const registerUserSchema = z.object({
 export const updateUserProfileSchema = z.object({
   name: z.string().min(2).max(100).optional(),
   avatar: z.string().url().optional().nullable(),
-  theme: themeEnum.optional(),
+  theme: z.enum(["light", "dark", "system"]).optional(),
 });
 
 // Admin-only user update schema
@@ -437,9 +437,9 @@ export const adminUpdateUserSchema = z.object({
   name: z.string().min(2).max(100).optional(),
   email: z.string().email().optional(),
   avatar: z.string().url().optional().nullable(),
-  theme: themeEnum.optional(),
-  role: roleEnum.optional(),
-  currentPlan: planTypeEnum.optional(),
+  theme: z.enum(["light", "dark", "system"]).optional(),
+  role: z.enum(["student", "moderator", "admin"]).optional(),
+  currentPlan: z.enum(["free", "pro"]).optional(),
   twofaEnabled: z.boolean().optional(),
 });
 

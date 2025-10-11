@@ -11,7 +11,7 @@ GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Ap
 - Added role-based access control (student, moderator, admin)
 - Set up storage layer with full CRUD operations for all entities
 
-### Authentication System
+### Authentication System (✅ Completed & Security Hardened)
 - Implemented Passport.js authentication with local strategy (email/password)
 - Added session management with express-session
 - Created secure user registration and login flows with bcrypt password hashing
@@ -19,6 +19,27 @@ GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Ap
 - Developed Login, Register, and Dashboard pages with proper routing
 - Updated Navbar with user menu and authentication state display
 - Added role-based middleware for API route protection
+- **Security Fix**: Implemented strict schema validation to prevent privilege escalation
+  - Created `registerUserSchema` that only accepts name, email, password
+  - Server-controlled defaults for role, authProvider, currentPlan
+  - Separate validation schemas for regular users vs admins (`updateUserProfileSchema` vs `adminUpdateUserSchema`)
+  - Prevents users from self-assigning admin role or pro plan
+
+### Question Bank Management (✅ Completed)
+- Built comprehensive question management system for GATE exam preparation
+- Created Questions page with filtering by topic, difficulty, and type
+- Implemented QuestionForm for creating/editing questions (admin/moderator only)
+- Added QuestionDetail page showing full question with options and explanations
+- Features:
+  - Support for multiple question types: MCQ (single), MSQ (multiple), Numerical
+  - Difficulty levels: Easy, Medium, Hard
+  - Rich question content with optional images
+  - Detailed explanations for answers
+  - Topic-based categorization
+  - Marks and negative marking configuration
+  - Publish/draft status control
+- Admin/moderator-only question creation and editing with proper access control
+- Integrated question management into navigation menu
 
 ### API Routes
 - `/api/auth/register` - User registration
@@ -42,9 +63,11 @@ GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Ap
 - **server/db.ts**: Database connection setup
 
 ### Frontend (React + Vite)
-- **client/src/App.tsx**: Main app with routing
+- **client/src/App.tsx**: Main app with routing (/, /login, /register, /dashboard, /questions, /questions/:id, /questions/:id/edit, /questions/new)
 - **client/src/contexts/AuthContext.tsx**: Authentication state management
-- **client/src/pages/**: Page components (Landing, Login, Register, Dashboard)
+- **client/src/pages/**: Page components
+  - Landing, Login, Register, Dashboard
+  - Questions, QuestionDetail, QuestionForm (question management)
 - **client/src/components/**: Reusable UI components (Navbar, etc.)
 
 ### Database Schema
@@ -72,10 +95,13 @@ GATE And Tech is a comprehensive exam preparation platform for GATE (Graduate Ap
 None set yet.
 
 ## Next Steps
-1. Build question bank management UI (admin panel)
-2. Implement mock test engine with GATE-style interface
+1. ✅ ~~Build question bank management UI (admin panel)~~ - Completed
+2. Build mock test engine with GATE-style interface
 3. Create analytics and performance tracking
 4. Add payment integration with Razorpay
 5. Build community features UI
 6. Add email notifications
 7. Implement 2FA for enhanced security
+8. Add topic management UI for admins/moderators
+9. Implement question import/export functionality
+10. Add bulk question upload from CSV/Excel
