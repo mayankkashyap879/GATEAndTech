@@ -26,7 +26,8 @@ export const difficultyEnum = pgEnum("difficulty", ["easy", "medium", "hard"]);
 export const testStatusEnum = pgEnum("test_status", ["draft", "published", "archived"]);
 export const attemptStatusEnum = pgEnum("attempt_status", ["in_progress", "submitted", "evaluated"]);
 export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "expired", "cancelled"]);
-export const planTypeEnum = pgEnum("plan_type", ["free", "pro"]);
+export const planTypeEnum = pgEnum("plan_type", ["free", "premium", "pro"]);
+export const paymentStatusEnum = pgEnum("payment_status", ["pending", "success", "failed", "refunded"]);
 
 // ============================================================================
 // USERS & AUTHENTICATION
@@ -46,6 +47,7 @@ export const users = pgTable("users", {
   twofaEnabled: boolean("twofa_enabled").default(false).notNull(),
   twofaSecret: text("twofa_secret"),
   currentPlan: planTypeEnum("current_plan").default("free").notNull(),
+  subscriptionExpiresAt: timestamp("subscription_expires_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
@@ -182,14 +184,29 @@ export const testResponses = pgTable("test_responses", {
 // SUBSCRIPTIONS & PAYMENTS
 // ============================================================================
 
+export const plans = pgTable("plans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // "Free", "Premium", "Pro"
+  type: planTypeEnum("type").notNull().unique(),
+  price: integer("price").notNull(), // in paise/cents (0 for free)
+  duration: integer("duration").notNull(), // in days
+  maxTests: integer("max_tests"), // null = unlimited
+  maxTestAttempts: integer("max_test_attempts"), // null = unlimited
+  features: jsonb("features").notNull(), // Array of feature strings
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const subscriptions = pgTable("subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  planId: varchar("plan_id").notNull().references(() => plans.id),
   planType: planTypeEnum("plan_type").notNull(),
   status: subscriptionStatusEnum("status").default("active").notNull(),
   startDate: timestamp("start_date").defaultNow().notNull(),
   endDate: timestamp("end_date").notNull(),
   razorpaySubscriptionId: text("razorpay_subscription_id"),
+  autoRenew: boolean("auto_renew").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   userIdx: index("subscriptions_user_idx").on(table.userId),
@@ -203,11 +220,15 @@ export const transactions = pgTable("transactions", {
   amount: integer("amount").notNull(), // in paise/cents
   currency: text("currency").default("INR").notNull(),
   razorpayPaymentId: text("razorpay_payment_id"),
-  razorpayOrderId: text("razorpay_order_id"),
-  status: text("status").notNull(), // 'pending', 'success', 'failed'
+  razorpayOrderId: text("razorpay_order_id").notNull(),
+  razorpaySignature: text("razorpay_signature"),
+  status: paymentStatusEnum("status").default("pending").notNull(),
+  invoiceUrl: text("invoice_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   userIdx: index("transactions_user_idx").on(table.userId),
+  orderIdx: index("transactions_order_idx").on(table.razorpayOrderId),
+  statusIdx: index("transactions_status_idx").on(table.status),
 }));
 
 // ============================================================================
@@ -354,10 +375,18 @@ export const testResponsesRelations = relations(testResponses, ({ one }) => ({
   }),
 }));
 
+export const plansRelations = relations(plans, ({ many }) => ({
+  subscriptions: many(subscriptions),
+}));
+
 export const subscriptionsRelations = relations(subscriptions, ({ one, many }) => ({
   user: one(users, {
     fields: [subscriptions.userId],
     references: [users.id],
+  }),
+  plan: one(plans, {
+    fields: [subscriptions.planId],
+    references: [plans.id],
   }),
   transactions: many(transactions),
 }));
@@ -439,7 +468,7 @@ export const adminUpdateUserSchema = z.object({
   avatar: z.string().url().optional().nullable(),
   theme: z.enum(["light", "dark", "system"]).optional(),
   role: z.enum(["student", "moderator", "admin"]).optional(),
-  currentPlan: z.enum(["free", "pro"]).optional(),
+  currentPlan: z.enum(["free", "premium", "pro"]).optional(),
   twofaEnabled: z.boolean().optional(),
 });
 
@@ -491,6 +520,15 @@ export const insertTestAttemptSchema = createInsertSchema(testAttempts).omit({
 
 export const selectTestAttemptSchema = createSelectSchema(testAttempts);
 
+// Plan schemas
+export const insertPlanSchema = createInsertSchema(plans, {
+  name: z.string().min(2).max(50),
+  price: z.number().int().nonnegative(),
+  duration: z.number().int().positive(),
+}).omit({ id: true, createdAt: true });
+
+export const selectPlanSchema = createSelectSchema(plans);
+
 // Subscription schemas
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ 
   id: true, 
@@ -498,6 +536,20 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
 });
 
 export const selectSubscriptionSchema = createSelectSchema(subscriptions);
+
+// Transaction schemas
+export const insertTransactionSchema = createInsertSchema(transactions, {
+  amount: z.number().int().positive(),
+}).omit({ id: true, createdAt: true });
+
+export const selectTransactionSchema = createSelectSchema(transactions);
+
+// Payment verification schema
+export const verifyPaymentSchema = z.object({
+  razorpay_order_id: z.string(),
+  razorpay_payment_id: z.string(),
+  razorpay_signature: z.string(),
+});
 
 // Discussion schemas
 export const insertThreadSchema = createInsertSchema(discussionThreads, {
@@ -520,6 +572,9 @@ export type UpdateUser = z.infer<typeof updateUserSchema>;
 export type Session = typeof sessions.$inferSelect;
 export type InsertSession = typeof sessions.$inferInsert;
 
+export type VerificationToken = typeof verificationTokens.$inferSelect;
+export type InsertVerificationToken = typeof verificationTokens.$inferInsert;
+
 export type Question = typeof questions.$inferSelect;
 export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
 
@@ -535,11 +590,14 @@ export type InsertTestAttempt = z.infer<typeof insertTestAttemptSchema>;
 export type TestResponse = typeof testResponses.$inferSelect;
 export type InsertTestResponse = typeof testResponses.$inferInsert;
 
+export type Plan = typeof plans.$inferSelect;
+export type InsertPlan = z.infer<typeof insertPlanSchema>;
+
 export type Subscription = typeof subscriptions.$inferSelect;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 
 export type Transaction = typeof transactions.$inferSelect;
-export type InsertTransaction = typeof transactions.$inferInsert;
+export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 
 export type DiscussionThread = typeof discussionThreads.$inferSelect;
 export type InsertDiscussionThread = z.infer<typeof insertThreadSchema>;

@@ -10,7 +10,9 @@ import {
   testQuestions,
   testAttempts,
   testResponses,
+  plans,
   subscriptions,
+  transactions,
   discussionThreads,
   discussionPosts,
   notifications,
@@ -30,8 +32,12 @@ import {
   type InsertTestAttempt,
   type TestResponse,
   type InsertTestResponse,
+  type Plan,
+  type InsertPlan,
   type Subscription,
   type InsertSubscription,
+  type Transaction,
+  type InsertTransaction,
   type DiscussionThread,
   type InsertDiscussionThread,
   type DiscussionPost,
@@ -113,10 +119,26 @@ export interface IStorage {
   getTestAttemptResponses(attemptId: string): Promise<TestResponse[]>;
   getTestResponse(attemptId: string, questionId: string): Promise<TestResponse | undefined>;
   
+  // Plan operations
+  getPlan(id: string): Promise<Plan | undefined>;
+  getPlanByType(type: string): Promise<Plan | undefined>;
+  getPlans(): Promise<Plan[]>;
+  getActivePlans(): Promise<Plan[]>;
+  createPlan(plan: InsertPlan): Promise<Plan>;
+  updatePlan(id: string, data: Partial<InsertPlan>): Promise<Plan | undefined>;
+  
   // Subscription operations
   getUserSubscription(userId: string): Promise<Subscription | undefined>;
+  getUserActiveSubscription(userId: string): Promise<Subscription | undefined>;
   createSubscription(subscription: InsertSubscription): Promise<Subscription>;
   updateSubscription(id: string, data: Partial<InsertSubscription>): Promise<Subscription | undefined>;
+  
+  // Transaction operations
+  getTransaction(id: string): Promise<Transaction | undefined>;
+  getTransactionByOrderId(orderId: string): Promise<Transaction | undefined>;
+  getUserTransactions(userId: string, limit?: number): Promise<Transaction[]>;
+  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  updateTransaction(id: string, data: Partial<InsertTransaction>): Promise<Transaction | undefined>;
   
   // Discussion operations
   getThread(id: string): Promise<DiscussionThread | undefined>;
@@ -623,10 +645,77 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ============================================================================
+  // PLAN OPERATIONS
+  // ============================================================================
+
+  async getPlan(id: string): Promise<Plan | undefined> {
+    const [plan] = await db
+      .select()
+      .from(plans)
+      .where(eq(plans.id, id));
+    return plan || undefined;
+  }
+
+  async getPlanByType(type: string): Promise<Plan | undefined> {
+    const [plan] = await db
+      .select()
+      .from(plans)
+      .where(eq(plans.type, type as any));
+    return plan || undefined;
+  }
+
+  async getPlans(): Promise<Plan[]> {
+    return await db
+      .select()
+      .from(plans)
+      .orderBy(asc(plans.price));
+  }
+
+  async getActivePlans(): Promise<Plan[]> {
+    return await db
+      .select()
+      .from(plans)
+      .where(eq(plans.isActive, true))
+      .orderBy(asc(plans.price));
+  }
+
+  async createPlan(insertPlan: InsertPlan): Promise<Plan> {
+    const [plan] = await db
+      .insert(plans)
+      .values(insertPlan)
+      .returning();
+    return plan;
+  }
+
+  async updatePlan(id: string, data: Partial<InsertPlan>): Promise<Plan | undefined> {
+    const [plan] = await db
+      .update(plans)
+      .set(data)
+      .where(eq(plans.id, id))
+      .returning();
+    return plan || undefined;
+  }
+
+  // ============================================================================
   // SUBSCRIPTION OPERATIONS
   // ============================================================================
 
   async getUserSubscription(userId: string): Promise<Subscription | undefined> {
+    const [subscription] = await db
+      .select()
+      .from(subscriptions)
+      .where(
+        and(
+          eq(subscriptions.userId, userId),
+          eq(subscriptions.status, "active")
+        )
+      )
+      .orderBy(desc(subscriptions.createdAt))
+      .limit(1);
+    return subscription || undefined;
+  }
+
+  async getUserActiveSubscription(userId: string): Promise<Subscription | undefined> {
     const [subscription] = await db
       .select()
       .from(subscriptions)
@@ -656,6 +745,52 @@ export class DatabaseStorage implements IStorage {
       .where(eq(subscriptions.id, id))
       .returning();
     return subscription || undefined;
+  }
+
+  // ============================================================================
+  // TRANSACTION OPERATIONS
+  // ============================================================================
+
+  async getTransaction(id: string): Promise<Transaction | undefined> {
+    const [transaction] = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, id));
+    return transaction || undefined;
+  }
+
+  async getTransactionByOrderId(orderId: string): Promise<Transaction | undefined> {
+    const [transaction] = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.razorpayOrderId, orderId));
+    return transaction || undefined;
+  }
+
+  async getUserTransactions(userId: string, limit: number = 50): Promise<Transaction[]> {
+    return await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.userId, userId))
+      .orderBy(desc(transactions.createdAt))
+      .limit(limit);
+  }
+
+  async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
+    const [transaction] = await db
+      .insert(transactions)
+      .values(insertTransaction)
+      .returning();
+    return transaction;
+  }
+
+  async updateTransaction(id: string, data: Partial<InsertTransaction>): Promise<Transaction | undefined> {
+    const [transaction] = await db
+      .update(transactions)
+      .set(data)
+      .where(eq(transactions.id, id))
+      .returning();
+    return transaction || undefined;
   }
 
   // ============================================================================
