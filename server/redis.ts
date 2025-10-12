@@ -132,6 +132,41 @@ export const cache = {
   },
 
   /**
+   * Set expiration time on a key (in seconds)
+   */
+  async expire(key: string, seconds: number): Promise<void> {
+    if (!redis || !isRedisAvailable) return;
+    try {
+      await redis.expire(key, seconds);
+    } catch (error) {
+      console.error(`Cache expire error for key ${key}:`, error);
+    }
+  },
+
+  /**
+   * Set key only if it doesn't exist (atomic operation)
+   * Returns true if key was set, false if it already existed
+   */
+  async setnx(key: string, value: any, ttl?: number): Promise<boolean> {
+    if (!redis || !isRedisAvailable) return false;
+    try {
+      const serialized = JSON.stringify(value);
+      let result: number;
+      if (ttl) {
+        // Use SET with NX and EX options
+        const response = await redis.set(key, serialized, 'EX', ttl, 'NX');
+        result = response === 'OK' ? 1 : 0;
+      } else {
+        result = await redis.setnx(key, serialized);
+      }
+      return result === 1;
+    } catch (error) {
+      console.error(`Cache setnx error for key ${key}:`, error);
+      return false;
+    }
+  },
+
+  /**
    * Add to sorted set (for leaderboards, rankings)
    */
   async addToSortedSet(key: string, score: number, member: string): Promise<void> {

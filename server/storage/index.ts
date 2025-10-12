@@ -112,8 +112,11 @@ export interface IStorage {
   getThread(id: string): Promise<DiscussionThread | undefined>;
   getThreads(filters?: { topicId?: string; limit?: number; offset?: number }): Promise<DiscussionThread[]>;
   createThread(thread: InsertDiscussionThread): Promise<DiscussionThread>;
+  getPost(id: string): Promise<DiscussionPost | undefined>;
   getThreadPosts(threadId: string): Promise<DiscussionPost[]>;
   createPost(post: InsertDiscussionPost): Promise<DiscussionPost>;
+  updatePost(id: string, data: Partial<InsertDiscussionPost>): Promise<DiscussionPost | undefined>;
+  incrementPostUpvotes(id: string, amount: number): Promise<void>;
   getUserPerformanceStats(userId: string): Promise<{
     totalTests: number;
     averageScore: number;
@@ -430,12 +433,24 @@ export class Storage implements IStorage {
     return this.discussionStorage.createThread(thread);
   }
 
+  getPost(id: string): Promise<DiscussionPost | undefined> {
+    return this.discussionStorage.getPost(id);
+  }
+
   getThreadPosts(threadId: string): Promise<DiscussionPost[]> {
     return this.discussionStorage.getThreadPosts(threadId);
   }
 
   createPost(post: InsertDiscussionPost): Promise<DiscussionPost> {
     return this.discussionStorage.createPost(post);
+  }
+
+  updatePost(id: string, data: Partial<InsertDiscussionPost>): Promise<DiscussionPost | undefined> {
+    return this.discussionStorage.updatePost(id, data);
+  }
+
+  incrementPostUpvotes(id: string, amount: number): Promise<void> {
+    return this.discussionStorage.incrementPostUpvotes(id, amount);
   }
 
   getUserPerformanceStats(userId: string): Promise<{

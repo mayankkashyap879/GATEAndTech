@@ -47,6 +47,14 @@ export class DiscussionStorage {
     return thread;
   }
 
+  async getPost(id: string): Promise<DiscussionPost | undefined> {
+    const [post] = await db
+      .select()
+      .from(discussionPosts)
+      .where(eq(discussionPosts.id, id));
+    return post || undefined;
+  }
+
   async getThreadPosts(threadId: string): Promise<DiscussionPost[]> {
     return await db
       .select()
@@ -61,6 +69,22 @@ export class DiscussionStorage {
       .values(insertPost)
       .returning();
     return post;
+  }
+
+  async updatePost(id: string, data: Partial<InsertDiscussionPost>): Promise<DiscussionPost | undefined> {
+    const [post] = await db
+      .update(discussionPosts)
+      .set(data)
+      .where(eq(discussionPosts.id, id))
+      .returning();
+    return post || undefined;
+  }
+
+  async incrementPostUpvotes(id: string, amount: number): Promise<void> {
+    await db
+      .update(discussionPosts)
+      .set({ upvotes: sql`GREATEST(COALESCE(${discussionPosts.upvotes}, 0) + ${amount}, 0)` })
+      .where(eq(discussionPosts.id, id));
   }
 
   async getUserPerformanceStats(userId: string): Promise<{

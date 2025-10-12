@@ -110,4 +110,101 @@ export function discussionRoutes(app: Express): void {
       res.status(500).json({ error: "Internal server error" });
     }
   });
+
+  // Upvote a post (Redis-backed fast increment)
+  app.post("/api/discussions/:threadId/posts/:postId/upvote", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { postId } = req.params;
+      const currentUser = req.user as any;
+      
+      // Atomic check-and-set: only vote if not already voted (24 hour TTL)
+      const voteKey = `vote:${currentUser.id}:${postId}`;
+      const canVote = await cache.setnx(voteKey, true, 86400);
+      
+      if (!canVote) {
+        return res.status(400).json({ error: "You have already voted on this post" });
+      }
+      
+      // Check if count exists in Redis
+      const cacheKey = `post:upvotes:${postId}`;
+      let currentCount = await cache.get<number>(cacheKey);
+      
+      // Initialize from database if not cached
+      if (currentCount === null) {
+        const post = await storage.getPost(postId);
+        currentCount = post?.upvotes || 0;
+        await cache.set(cacheKey, currentCount, 300);
+      }
+      
+      // Fast increment in Redis
+      const newCount = await cache.increment(cacheKey, 1);
+      
+      // Refresh TTL to prevent expiration
+      await cache.expire(cacheKey, 300);
+      
+      // Persist to database with error handling (await for reliability)
+      try {
+        await storage.incrementPostUpvotes(postId, 1);
+      } catch (dbError) {
+        console.error(`Failed to persist upvote to DB for post ${postId}:`, dbError);
+        // DB failed but Redis updated - acceptable eventual consistency
+      }
+      
+      res.json({ upvotes: newCount, success: true });
+    } catch (error) {
+      console.error("Error upvoting post:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Remove upvote from a post
+  app.delete("/api/discussions/:threadId/posts/:postId/upvote", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { postId } = req.params;
+      const currentUser = req.user as any;
+      
+      // Check if user has voted
+      const voteKey = `vote:${currentUser.id}:${postId}`;
+      const hasVoted = await cache.get(voteKey);
+      
+      if (!hasVoted) {
+        return res.status(400).json({ error: "You have not voted on this post" });
+      }
+      
+      // Check if count exists in Redis
+      const cacheKey = `post:upvotes:${postId}`;
+      let currentCount = await cache.get<number>(cacheKey);
+      
+      // Initialize from database if not cached
+      if (currentCount === null) {
+        const post = await storage.getPost(postId);
+        currentCount = post?.upvotes || 0;
+        await cache.set(cacheKey, currentCount, 300);
+      }
+      
+      // Fast decrement in Redis (ensure non-negative)
+      let newCount = await cache.increment(cacheKey, -1);
+      if (newCount < 0) {
+        // Clamp to 0 and update Redis
+        await cache.set(cacheKey, 0, 300);
+        newCount = 0;
+      } else {
+        // Refresh TTL to prevent expiration
+        await cache.expire(cacheKey, 300);
+      }
+      
+      // Remove vote marker
+      await cache.del(voteKey);
+      
+      // Persist to database asynchronously (fire-and-forget for speed)
+      storage.incrementPostUpvotes(postId, -1).catch(err => 
+        console.error(`Failed to persist downvote to DB for post ${postId}:`, err)
+      );
+      
+      res.json({ upvotes: newCount, success: true });
+    } catch (error) {
+      console.error("Error removing upvote:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
 }
