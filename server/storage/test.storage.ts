@@ -108,6 +108,18 @@ export class TestStorage {
       .limit(limit);
   }
 
+  async getTestAttemptsByTestId(testId: string, status?: string): Promise<TestAttempt[]> {
+    const conditions = [eq(testAttempts.testId, testId)];
+    if (status) {
+      conditions.push(eq(testAttempts.status, status as any));
+    }
+    return await db
+      .select()
+      .from(testAttempts)
+      .where(and(...conditions))
+      .orderBy(desc(testAttempts.startedAt));
+  }
+
   async createTestAttempt(insertAttempt: InsertTestAttempt): Promise<TestAttempt> {
     const [attempt] = await db
       .insert(testAttempts)

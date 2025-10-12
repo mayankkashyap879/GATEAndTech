@@ -3,6 +3,9 @@ import session from "express-session";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { passport } from "./auth";
+// Import workers for background processing
+import "./workers/test-scoring.worker.js";
+import "./workers/analytics.worker.js";
 
 const app = express();
 app.use(express.json());

@@ -83,6 +83,7 @@ export interface IStorage {
   getTestQuestions(testId: string): Promise<Question[]>;
   getTestAttempt(id: string): Promise<TestAttempt | undefined>;
   getUserTestAttempts(userId: string, limit?: number): Promise<TestAttempt[]>;
+  getTestAttemptsByTestId(testId: string, status?: string): Promise<TestAttempt[]>;
   createTestAttempt(attempt: InsertTestAttempt): Promise<TestAttempt>;
   updateTestAttempt(id: string, data: Partial<InsertTestAttempt>): Promise<TestAttempt | undefined>;
   createTestResponse(response: InsertTestResponse): Promise<TestResponse>;
@@ -311,6 +312,10 @@ export class Storage implements IStorage {
 
   getUserTestAttempts(userId: string, limit?: number): Promise<TestAttempt[]> {
     return this.testStorage.getUserTestAttempts(userId, limit);
+  }
+
+  getTestAttemptsByTestId(testId: string, status?: string): Promise<TestAttempt[]> {
+    return this.testStorage.getTestAttemptsByTestId(testId, status);
   }
 
   createTestAttempt(attempt: InsertTestAttempt): Promise<TestAttempt> {
