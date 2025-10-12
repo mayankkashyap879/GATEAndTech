@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { storage } from "../storage";
-import { requireAuth, requireRole } from "../auth";
+import { requireAuth } from "../auth";
+import { can } from "../middleware/permissions";
 import { insertTestSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -114,8 +115,8 @@ export function testRoutes(app: Express): void {
     }
   });
 
-  // Create test (moderator/admin only)
-  app.post("/api/tests", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
+  // Create test (requires create:Test permission)
+  app.post("/api/tests", can('create', 'Test'), async (req: Request, res: Response) => {
     try {
       const currentUser = req.user as any;
       const { questionIds, ...testData } = req.body;
@@ -142,8 +143,8 @@ export function testRoutes(app: Express): void {
     }
   });
 
-  // Update test (moderator/admin only)
-  app.patch("/api/tests/:id", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
+  // Update test (requires update:Test permission)
+  app.patch("/api/tests/:id", can('update', 'Test'), async (req: Request, res: Response) => {
     try {
       const { questionIds, ...testData } = req.body;
       
@@ -159,8 +160,8 @@ export function testRoutes(app: Express): void {
     }
   });
 
-  // Delete test (admin only)
-  app.delete("/api/tests/:id", requireRole("admin"), async (req: Request, res: Response) => {
+  // Delete test (requires delete:Test permission)
+  app.delete("/api/tests/:id", can('delete', 'Test'), async (req: Request, res: Response) => {
     try {
       await storage.deleteTest(req.params.id);
       res.status(204).send();
