@@ -131,6 +131,7 @@ export interface IStorage {
   removeTestFromSeries(testSeriesId: string, testId: string): Promise<void>;
   getTestSeriesTests(testSeriesId: string): Promise<Test[]>;
   getTestSeriesByTestId(testId: string): Promise<TestSeries | undefined>;
+  getTestSeriesTestsByTestId(testId: string): Promise<TestSeriesTest[]>;
   
   // User Purchase operations
   getUserPurchase(userId: string, testSeriesId: string): Promise<UserPurchase | undefined>;
@@ -727,6 +728,13 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
 
     return result[0]?.testSeries || undefined;
+  }
+
+  async getTestSeriesTestsByTestId(testId: string): Promise<TestSeriesTest[]> {
+    return await db
+      .select()
+      .from(testSeriesTests)
+      .where(eq(testSeriesTests.testId, testId));
   }
 
   // ============================================================================

@@ -4,6 +4,32 @@ import { requireAuth, requireRole } from "../auth";
 import { insertTestSchema } from "@shared/schema";
 import { z } from "zod";
 
+// Helper function to check if user has access to a test
+async function userHasAccessToTest(userId: string, testId: string, userRole: string): Promise<boolean> {
+  // Admin and moderator have access to all tests
+  if (userRole === "admin" || userRole === "moderator") {
+    return true;
+  }
+
+  // Check if test is in a test series
+  const testSeriesTests = await storage.getTestSeriesTestsByTestId(testId);
+  
+  // If test is not in any test series, it's free and accessible to all
+  if (testSeriesTests.length === 0) {
+    return true;
+  }
+
+  // Check if user has purchased any of the test series this test belongs to
+  for (const tst of testSeriesTests) {
+    const purchase = await storage.getUserPurchase(userId, tst.testSeriesId);
+    if (purchase && purchase.status === "active") {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function testRoutes(app: Express): void {
   // ============================================================================
   // TEST ROUTES
@@ -15,18 +41,28 @@ export function testRoutes(app: Express): void {
       const currentUser = req.user as any;
       const filters = {
         status: req.query.status as string,
-        isPro: req.query.isPro === "true" ? true : req.query.isPro === "false" ? false : undefined,
         limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
         offset: req.query.offset ? parseInt(req.query.offset as string) : undefined,
       };
       
-      // Filter out pro tests for free users
-      if (currentUser.currentPlan === "free" && filters.isPro !== false) {
-        filters.isPro = false;
+      // Admin/moderator get all tests
+      if (currentUser.role === "admin" || currentUser.role === "moderator") {
+        const tests = await storage.getTests(filters);
+        return res.json(tests);
       }
       
-      const tests = await storage.getTests(filters);
-      res.json(tests);
+      // For students: get all tests and filter based on access
+      const allTests = await storage.getTests(filters);
+      const accessibleTests = [];
+      
+      for (const test of allTests) {
+        const hasAccess = await userHasAccessToTest(currentUser.id, test.id, currentUser.role);
+        if (hasAccess) {
+          accessibleTests.push(test);
+        }
+      }
+      
+      res.json(accessibleTests);
     } catch (error) {
       console.error("Error fetching tests:", error);
       res.status(500).json({ error: "Internal server error" });
@@ -36,15 +72,16 @@ export function testRoutes(app: Express): void {
   // Get single test
   app.get("/api/tests/:id", requireAuth, async (req: Request, res: Response) => {
     try {
+      const currentUser = req.user as any;
       const test = await storage.getTest(req.params.id);
       if (!test) {
         return res.status(404).json({ error: "Test not found" });
       }
       
-      // Check if user has access to pro test
-      const currentUser = req.user as any;
-      if (test.isPro && currentUser.currentPlan === "free") {
-        return res.status(403).json({ error: "Pro subscription required" });
+      // Check if user has access to this test
+      const hasAccess = await userHasAccessToTest(currentUser.id, test.id, currentUser.role);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied. Purchase required." });
       }
       
       res.json(test);
@@ -57,9 +94,16 @@ export function testRoutes(app: Express): void {
   // Get test questions
   app.get("/api/tests/:id/questions", requireAuth, async (req: Request, res: Response) => {
     try {
+      const currentUser = req.user as any;
       const test = await storage.getTest(req.params.id);
       if (!test) {
         return res.status(404).json({ error: "Test not found" });
+      }
+
+      // Check if user has access to this test
+      const hasAccess = await userHasAccessToTest(currentUser.id, test.id, currentUser.role);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied. Purchase required." });
       }
 
       const questions = await storage.getTestQuestions(req.params.id);
@@ -149,14 +193,16 @@ export function testRoutes(app: Express): void {
       const currentUser = req.user as any;
       const { testId } = req.body;
       
-      // Verify test exists and user has access
+      // Verify test exists
       const test = await storage.getTest(testId);
       if (!test) {
         return res.status(404).json({ error: "Test not found" });
       }
       
-      if (test.isPro && currentUser.currentPlan === "free") {
-        return res.status(403).json({ error: "Pro subscription required" });
+      // Check if user has access to this test
+      const hasAccess = await userHasAccessToTest(currentUser.id, test.id, currentUser.role);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied. Purchase required." });
       }
       
       const attempt = await storage.createTestAttempt({
