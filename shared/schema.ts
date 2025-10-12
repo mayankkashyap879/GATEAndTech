@@ -586,6 +586,74 @@ export const insertPostSchema = createInsertSchema(discussionPosts, {
 }).omit({ id: true, createdAt: true, updatedAt: true, upvotes: true });
 
 // ============================================================================
+// PERMISSIONS & RBAC (CASL)
+// ============================================================================
+
+export const roles = pgTable("roles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 50 }).notNull().unique(),
+  description: text("description"),
+  isSystem: boolean("is_system").default(false).notNull(), // true for student, moderator, admin
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  nameIdx: index("roles_name_idx").on(table.name),
+}));
+
+export const permissions = pgTable("permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  action: varchar("action", { length: 50 }).notNull(), // create, read, update, delete, publish, manage
+  subject: varchar("subject", { length: 50 }).notNull(), // Question, Test, User, Role, etc.
+  conditions: jsonb("conditions"), // Optional CASL conditions
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  actionSubjectIdx: unique("permissions_action_subject_idx").on(table.action, table.subject),
+}));
+
+export const rolePermissions = pgTable("role_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roleId: varchar("role_id").notNull().references(() => roles.id, { onDelete: "cascade" }),
+  permissionId: varchar("permission_id").notNull().references(() => permissions.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  roleIdx: index("role_permissions_role_idx").on(table.roleId),
+  permissionIdx: index("role_permissions_permission_idx").on(table.permissionId),
+  uniq: unique().on(table.roleId, table.permissionId),
+}));
+
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  action: varchar("action", { length: 100 }).notNull(), // e.g., 'role.create', 'permission.assign'
+  resource: varchar("resource", { length: 100 }).notNull(), // e.g., 'Role', 'Permission'
+  resourceId: varchar("resource_id"),
+  details: jsonb("details"), // Old/new values, additional context
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("audit_logs_user_idx").on(table.userId),
+  actionIdx: index("audit_logs_action_idx").on(table.action),
+  resourceIdx: index("audit_logs_resource_idx").on(table.resource, table.resourceId),
+  createdAtIdx: index("audit_logs_created_at_idx").on(table.createdAt),
+}));
+
+// Permission schemas
+export const insertRoleSchema = createInsertSchema(roles, {
+  name: z.string().min(2).max(50),
+  description: z.string().optional(),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+
+export const insertPermissionSchema = createInsertSchema(permissions, {
+  action: z.string().min(2).max(50),
+  subject: z.string().min(2).max(50),
+  description: z.string().optional(),
+}).omit({ id: true, createdAt: true });
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
+
+// ============================================================================
 // TYPES
 // ============================================================================
 
@@ -634,3 +702,15 @@ export type InsertDiscussionPost = z.infer<typeof insertPostSchema>;
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
+
+export type Role = typeof roles.$inferSelect;
+export type InsertRole = z.infer<typeof insertRoleSchema>;
+
+export type Permission = typeof permissions.$inferSelect;
+export type InsertPermission = z.infer<typeof insertPermissionSchema>;
+
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type InsertRolePermission = typeof rolePermissions.$inferInsert;
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
