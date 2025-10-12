@@ -15,17 +15,22 @@ The platform features a clean, responsive design using `shadcn/ui` components an
 - **Authentication**: Implemented using Passport.js with local (email/password) and OAuth (Google, GitHub) strategies. Features include secure registration/login, session management, and role-based access control. Two-Factor Authentication (TOTP) is integrated for enhanced security. Password reset functionality uses cryptographically secure tokens with 1-hour expiry, email enumeration prevention, and dev-only console logging (production requires email service integration).
 - **Question Bank Management**: Supports multiple question types (MCQ, MSQ, Numerical) with varying difficulty levels, rich content, explanations, and topic-based categorization. Access control ensures only authorized roles (admin/moderator) can manage the core question bank.
 - **Mock Test Engine**: Provides an authentic GATE-style testing experience with real-time response persistence, automatic scoring (including negative marking), and a comprehensive exam summary. Numerical input handling includes debouncing to prevent race conditions.
+- **Test Series & Purchase Model**: One-time purchase model with validity duration. Test series (collections of tests) can have tiers (free, premium, pro). Students purchase test series via Razorpay integration. Free tests (not in any test series) are accessible to all students. Purchased test series grant access until expiry date.
+- **Tier-based Access Control**: Comprehensive access control system ensures students can only access free tests or tests from purchased test series with active status. Admin/moderator have full access to all tests. All test endpoints (`/api/tests`, `/api/tests/:id`, `/api/tests/:id/questions`, `/api/attempts`) enforce tier-based access control using the `userHasAccessToTest` helper function.
 - **Analytics & Performance Tracking**: Offers detailed insights into user performance through an analytics dashboard. Metrics include overall performance, topic-wise accuracy, difficulty-wise performance, and score trends.
 - **Discussion Forum**: A Q&A system allowing all authenticated users to create threads and post answers, fostering a community learning environment.
 
 ### Feature Specifications
 - **User Management**: Role-based access control (student, moderator, admin).
-- **Authentication**: Local, OAuth (Google, GitHub), 2FA/TOTP.
+- **Authentication**: Local, OAuth (Google, GitHub), 2FA/TOTP, password reset.
 - **Question Management**: CRUD operations for questions, topics, difficulty, type, and status.
-- **Test Management**: Test creation, scheduling, pro-tier support, and attempt tracking.
+- **Test Management**: Test creation, scheduling, test series support, and attempt tracking.
+- **Test Series Shop**: Browse and purchase test series with Razorpay integration, order verification, and persistent error handling.
+- **My Purchases**: View purchased test series with status tracking (active/expired) and validity information.
+- **Tier-based Access Control**: Students access free tests or purchased test series; admin/moderator access all content.
 - **Performance Analytics**: Overall, topic-wise, difficulty-wise, and trend analysis.
 - **Community**: Discussion forums/Q&A system.
-- **Security**: Strict schema validation, role-based middleware, password hashing (bcrypt), and secure session management.
+- **Security**: Strict schema validation, role-based middleware, password hashing (bcrypt), secure session management, and tier-based access control.
 
 ### System Design Choices
 - **Backend**: Node.js with Express.js for RESTful API services. Routes are modularized by domain for maintainability:
@@ -34,6 +39,7 @@ The platform features a clean, responsive design using `shadcn/ui` components an
   - `server/routes/topic.routes.ts` - Topic operations
   - `server/routes/question.routes.ts` - Question bank management
   - `server/routes/test.routes.ts` - Test and test attempt operations
+  - `server/routes/payment.routes.ts` - Razorpay payment integration, order creation/verification, test series purchases
   - `server/routes/discussion.routes.ts` - Discussion forum
   - `server/routes/analytics.routes.ts` - Performance analytics
   - `server/routes/index.ts` - Route aggregator
