@@ -20,6 +20,7 @@ The platform features a clean, responsive design using `shadcn/ui` components an
 - **Tier-based Access Control**: Multi-layer access control system. First layer: CASL permission checks (read:Test, create:Test, update:Test, delete:Test). Second layer: purchase-based access control ensures students can only access free tests or tests from purchased test series with active status. Admin/moderator have full access to all tests via CASL permissions.
 - **Analytics & Performance Tracking**: Offers detailed insights into user performance through an analytics dashboard. Metrics include overall performance, topic-wise accuracy, difficulty-wise performance, and score trends.
 - **Discussion Forum**: A Q&A system allowing all authenticated users to create threads and post answers, fostering a community learning environment.
+- **Scalability Infrastructure**: Redis-based caching and BullMQ job queues for handling 10K+ concurrent users. Gracefully degrades to synchronous processing when Redis is unavailable. Supports TLS (rediss://) for secure managed Redis providers. Non-blocking cache operations using SCAN instead of KEYS.
 
 ### Feature Specifications
 - **User Management**: Dynamic role-based access control with CASL. Admins can create custom roles and assign granular permissions.
@@ -48,6 +49,8 @@ The platform features a clean, responsive design using `shadcn/ui` components an
   - `server/routes/index.ts` - Route aggregator
   - `server/casl/abilities.ts` - CASL ability definitions and permission logic
   - `server/middleware/permissions.ts` - CASL permission middleware (can/canAny/canAll)
+  - `server/redis.ts` - Redis client configuration with TLS support, optional initialization, SCAN-based cache helpers
+  - `server/queue.ts` - BullMQ queue setup for background jobs (test scoring, reports, analytics, invoices), graceful degradation when Redis unavailable
 - **Storage Layer**: Modularized data access layer for better maintainability:
   - `server/storage/user.storage.ts` (175 lines) - User, session, and authentication token operations
   - `server/storage/question.storage.ts` (126 lines) - Question and topic CRUD operations
@@ -72,6 +75,7 @@ The platform features a clean, responsive design using `shadcn/ui` components an
 - **Database**: PostgreSQL (hosted on Neon)
 - **ORM**: Drizzle ORM
 - **Authentication**: Passport.js (with `passport-google-oauth20`, `passport-github2`, `passport-local`)
+- **Caching & Queues**: Redis (ioredis) with BullMQ for background job processing
 - **UI Components**: shadcn/ui
 - **Styling**: Tailwind CSS
 - **Charting**: recharts
