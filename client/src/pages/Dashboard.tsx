@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocation } from "wouter";
-import { BookOpen, TrendingUp, Calendar, Users, Eye, FileQuestion, BarChart3, MessageSquare } from "lucide-react";
+import { BookOpen, TrendingUp, Calendar, Users, Eye, FileQuestion, BarChart3, MessageSquare, ShoppingCart, Package } from "lucide-react";
 
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
@@ -161,6 +161,30 @@ export default function Dashboard() {
                 <BarChart3 className="h-6 w-6 text-primary" />
               </CardHeader>
             </Card>
+            
+            {effectiveRole === "student" && (
+              <>
+                <Card className="hover-elevate cursor-pointer" onClick={() => setLocation("/shop")} data-testid="card-quick-link-shop">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <div>
+                      <CardTitle className="text-base">Test Series Shop</CardTitle>
+                      <CardDescription className="mt-1">Browse and purchase test series</CardDescription>
+                    </div>
+                    <ShoppingCart className="h-6 w-6 text-primary" />
+                  </CardHeader>
+                </Card>
+                
+                <Card className="hover-elevate cursor-pointer" onClick={() => setLocation("/my-purchases")} data-testid="card-quick-link-purchases">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <div>
+                      <CardTitle className="text-base">My Purchases</CardTitle>
+                      <CardDescription className="mt-1">View your subscriptions</CardDescription>
+                    </div>
+                    <Package className="h-6 w-6 text-primary" />
+                  </CardHeader>
+                </Card>
+              </>
+            )}
           </div>
         </div>
 
@@ -195,23 +219,23 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Pro Banner */}
-        {user.currentPlan === "free" && (
+        {/* Test Series Banner */}
+        {effectiveRole === "student" && (
           <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
             <CardHeader>
-              <CardTitle>Upgrade to Pro</CardTitle>
+              <CardTitle>Explore Test Series</CardTitle>
               <CardDescription>
-                Unlock premium features and mock tests
+                Access premium mock tests and boost your GATE preparation
               </CardDescription>
             </CardHeader>
             <CardContent className="flex items-center justify-between">
               <ul className="text-sm space-y-1 text-muted-foreground">
-                <li>• Access to all premium tests</li>
+                <li>• Comprehensive test series for all subjects</li>
+                <li>• GATE-authentic exam interface</li>
                 <li>• Detailed performance analytics</li>
-                <li>• Personalized study recommendations</li>
               </ul>
-              <Button onClick={() => setLocation("/pricing")}>
-                Upgrade Now
+              <Button onClick={() => setLocation("/shop")} data-testid="button-browse-shop">
+                Browse Shop
               </Button>
             </CardContent>
           </Card>

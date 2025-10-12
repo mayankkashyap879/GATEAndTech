@@ -20,6 +20,18 @@ function requireAuth(req: Request, res: Response, next: Function) {
 export function paymentRoutes(app: Express) {
   
   // ============================================================================
+  // GET RAZORPAY KEY - For frontend checkout
+  // ============================================================================
+  
+  app.get("/api/payments/key", async (req: Request, res: Response) => {
+    try {
+      res.json({ key: process.env.RAZORPAY_KEY_ID || "" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // ============================================================================
   // GET TEST SERIES - Shop page
   // ============================================================================
   

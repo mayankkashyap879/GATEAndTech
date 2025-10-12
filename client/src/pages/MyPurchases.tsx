@@ -35,7 +35,7 @@ export default function MyPurchases() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
 
-  const { data: purchases, isLoading } = useQuery<PurchaseWithSeries[]>({
+  const { data: purchases, isLoading, error } = useQuery<PurchaseWithSeries[]>({
     queryKey: ["/api/payments/purchases"],
     enabled: isAuthenticated,
   });
@@ -49,6 +49,21 @@ export default function MyPurchases() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-primary" data-testid="loader-purchases" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-destructive text-lg mb-4" data-testid="text-error">
+            Failed to load your purchases
+          </p>
+          <Button onClick={() => window.location.reload()} data-testid="button-retry">
+            Retry
+          </Button>
+        </div>
       </div>
     );
   }
