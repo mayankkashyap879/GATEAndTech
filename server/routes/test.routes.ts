@@ -36,8 +36,8 @@ export function testRoutes(app: Express): void {
   // TEST ROUTES
   // ============================================================================
 
-  // Get tests
-  app.get("/api/tests", requireAuth, async (req: Request, res: Response) => {
+  // Get tests (requires read:Test permission, then applies purchase-based access control)
+  app.get("/api/tests", can('read', 'Test'), async (req: Request, res: Response) => {
     try {
       const currentUser = req.user as any;
       const filters = {
@@ -70,8 +70,8 @@ export function testRoutes(app: Express): void {
     }
   });
 
-  // Get single test
-  app.get("/api/tests/:id", requireAuth, async (req: Request, res: Response) => {
+  // Get single test (requires read:Test permission, then applies purchase-based access control)
+  app.get("/api/tests/:id", can('read', 'Test'), async (req: Request, res: Response) => {
     try {
       const currentUser = req.user as any;
       const test = await storage.getTest(req.params.id);
@@ -92,8 +92,8 @@ export function testRoutes(app: Express): void {
     }
   });
 
-  // Get test questions
-  app.get("/api/tests/:id/questions", requireAuth, async (req: Request, res: Response) => {
+  // Get test questions (requires read:Test permission, then applies purchase-based access control)
+  app.get("/api/tests/:id/questions", can('read', 'Test'), async (req: Request, res: Response) => {
     try {
       const currentUser = req.user as any;
       const test = await storage.getTest(req.params.id);

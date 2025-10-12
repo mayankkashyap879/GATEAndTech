@@ -57,7 +57,7 @@ export function defineAbilitiesFor(user: UserWithPermissions): AppAbility {
 
       case 'student':
         // Students can read content and participate in discussions
-        can('read', ['Question', 'Test', 'TestSeries', 'Discussion', 'Analytics']);
+        can('read', ['Question', 'Test', 'Topic', 'TestSeries', 'Discussion', 'Analytics']);
         can(['create', 'update'], 'Discussion');
         // Students can read users (for viewing profiles)
         can('read', 'User');
