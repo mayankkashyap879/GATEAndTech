@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { storage } from "../storage";
-import { requireRole } from "../auth";
+import { can } from "../middleware/permissions";
 import { insertQuestionSchema, updateQuestionSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -9,8 +9,8 @@ export function questionRoutes(app: Express): void {
   // QUESTION ROUTES (Admin/Moderator Only)
   // ============================================================================
 
-  // Get questions with filters (admin/moderator only)
-  app.get("/api/questions", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
+  // Get questions with filters (requires read:Question permission)
+  app.get("/api/questions", can('read', 'Question'), async (req: Request, res: Response) => {
     try {
       const filters = {
         topicId: req.query.topicId as string,
@@ -27,8 +27,8 @@ export function questionRoutes(app: Express): void {
     }
   });
 
-  // Get single question (admin/moderator only)
-  app.get("/api/questions/:id", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
+  // Get single question (requires read:Question permission)
+  app.get("/api/questions/:id", can('read', 'Question'), async (req: Request, res: Response) => {
     try {
       const question = await storage.getQuestion(req.params.id);
       if (!question) {
@@ -45,8 +45,8 @@ export function questionRoutes(app: Express): void {
     }
   });
 
-  // Create question (admin/moderator only)
-  app.post("/api/questions", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
+  // Create question (requires create:Question permission)
+  app.post("/api/questions", can('create', 'Question'), async (req: Request, res: Response) => {
     try {
       const currentUser = req.user as any;
       const { topicId, ...questionData } = req.body;
@@ -73,8 +73,8 @@ export function questionRoutes(app: Express): void {
     }
   });
 
-  // Update question (admin/moderator only)
-  app.patch("/api/questions/:id", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
+  // Update question (requires update:Question permission)
+  app.patch("/api/questions/:id", can('update', 'Question'), async (req: Request, res: Response) => {
     try {
       const currentUser = req.user as any;
       const { topicId, ...questionData } = req.body;
@@ -114,8 +114,8 @@ export function questionRoutes(app: Express): void {
     }
   });
 
-  // Delete question (admin only)
-  app.delete("/api/questions/:id", requireRole("admin"), async (req: Request, res: Response) => {
+  // Delete question (requires delete:Question permission)
+  app.delete("/api/questions/:id", can('delete', 'Question'), async (req: Request, res: Response) => {
     try {
       await storage.deleteQuestion(req.params.id);
       res.status(204).send();
