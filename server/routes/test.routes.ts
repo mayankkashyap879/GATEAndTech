@@ -4,6 +4,7 @@ import { requireAuth } from "../auth";
 import { can } from "../middleware/permissions";
 import { insertTestSchema } from "@shared/schema";
 import { z } from "zod";
+import { testSubmitLimiter } from "../middleware/rate-limit.js";
 
 // Helper function to check if user has access to a test
 async function userHasAccessToTest(userId: string, testId: string, userRole: string): Promise<boolean> {
@@ -242,7 +243,7 @@ export function testRoutes(app: Express): void {
   });
 
   // Submit test attempt
-  app.patch("/api/attempts/:id/submit", requireAuth, async (req: Request, res: Response) => {
+  app.patch("/api/attempts/:id/submit", requireAuth, testSubmitLimiter, async (req: Request, res: Response) => {
     try {
       const currentUser = req.user as any;
       const attempt = await storage.getTestAttempt(req.params.id);

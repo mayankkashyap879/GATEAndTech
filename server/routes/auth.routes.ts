@@ -7,6 +7,7 @@ import { registerUserSchema } from "@shared/schema";
 import { z } from "zod";
 import speakeasy from "speakeasy";
 import qrcode from "qrcode";
+import { authLimiter } from "../middleware/rate-limit.js";
 
 // Extend session types to include pending2FA
 declare module 'express-session' {
@@ -24,7 +25,7 @@ export function authRoutes(app: Express): void {
   // ============================================================================
 
   // Register new user
-  app.post("/api/auth/register", async (req: Request, res: Response) => {
+  app.post("/api/auth/register", authLimiter, async (req: Request, res: Response) => {
     try {
       // Only allow name, email, and password from user input
       const validatedData = registerUserSchema.parse(req.body);
@@ -45,7 +46,6 @@ export function authRoutes(app: Express): void {
         passwordHash,
         authProvider: "credentials", // Server-controlled
         role: "student", // Server-controlled - always student on registration
-        currentPlan: "free", // Server-controlled - always free on registration
         theme: "system", // Server-controlled default
       });
 
@@ -69,7 +69,7 @@ export function authRoutes(app: Express): void {
   });
 
   // Login
-  app.post("/api/auth/login", (req: Request, res: Response, next) => {
+  app.post("/api/auth/login", authLimiter, (req: Request, res: Response, next) => {
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) {
         return res.status(500).json({ error: "Internal server error" });
@@ -310,7 +310,7 @@ export function authRoutes(app: Express): void {
   // ============================================================================
 
   // Request password reset - generate token
-  app.post("/api/auth/forgot-password", async (req: Request, res: Response) => {
+  app.post("/api/auth/forgot-password", authLimiter, async (req: Request, res: Response) => {
     try {
       const { email } = req.body;
 
@@ -361,7 +361,7 @@ export function authRoutes(app: Express): void {
   });
 
   // Reset password with token
-  app.post("/api/auth/reset-password", async (req: Request, res: Response) => {
+  app.post("/api/auth/reset-password", authLimiter, async (req: Request, res: Response) => {
     try {
       const { token, password } = req.body;
 

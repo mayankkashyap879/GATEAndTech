@@ -5,6 +5,7 @@ import { storage } from "../storage";
 import { requireAuth } from "../auth";
 import { verifyPaymentSchema } from "@shared/schema";
 import { z } from "zod";
+import { apiLimiter } from "../middleware/rate-limit.js";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID || "",
@@ -66,7 +67,7 @@ export function paymentRoutes(app: Express) {
   // CREATE RAZORPAY ORDER - Purchase test series
   // ============================================================================
   
-  app.post("/api/payments/create-order", requireAuth, async (req: Request, res: Response) => {
+  app.post("/api/payments/create-order", requireAuth, apiLimiter, async (req: Request, res: Response) => {
     try {
       const { testSeriesId } = req.body;
       
@@ -139,7 +140,7 @@ export function paymentRoutes(app: Express) {
   // VERIFY PAYMENT - Confirms payment and grants access
   // ============================================================================
   
-  app.post("/api/payments/verify", requireAuth, async (req: Request, res: Response) => {
+  app.post("/api/payments/verify", requireAuth, apiLimiter, async (req: Request, res: Response) => {
     try {
       const validatedData = verifyPaymentSchema.parse(req.body);
       const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = validatedData;
