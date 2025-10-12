@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, ShoppingCart, Clock, CheckCircle, BookOpen, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 
@@ -119,6 +119,9 @@ export default function Shop() {
               const errorData = await verifyResponse.json();
               throw new Error(errorData.error || "Verification failed");
             }
+
+            // Invalidate purchases query to reflect new purchase
+            queryClient.invalidateQueries({ queryKey: ["/api/payments/purchases"] });
 
             toast({
               title: "Purchase Successful!",
