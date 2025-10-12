@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import { storage } from "../storage";
+import { requireAuth } from "../auth";
 import { verifyPaymentSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -9,13 +10,6 @@ const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID || "",
   key_secret: process.env.RAZORPAY_KEY_SECRET || "",
 });
-
-function requireAuth(req: Request, res: Response, next: Function) {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ error: "Not authenticated" });
-  }
-  next();
-}
 
 export function paymentRoutes(app: Express) {
   
