@@ -237,6 +237,11 @@ export function roleRoutes(app: Express): void {
         return res.status(404).json({ message: 'Role not found' });
       }
 
+      // Prevent modification of system roles
+      if (role.isSystem) {
+        return res.status(403).json({ message: 'Cannot modify permissions for system roles' });
+      }
+
       const permission = await roleStorage.getPermissionById(req.params.permissionId);
       if (!permission) {
         return res.status(404).json({ message: 'Permission not found' });
@@ -277,6 +282,11 @@ export function roleRoutes(app: Express): void {
       const role = await roleStorage.getRoleById(req.params.roleId);
       if (!role) {
         return res.status(404).json({ message: 'Role not found' });
+      }
+
+      // Prevent modification of system roles
+      if (role.isSystem) {
+        return res.status(403).json({ message: 'Cannot modify permissions for system roles' });
       }
 
       const permission = await roleStorage.getPermissionById(req.params.permissionId);

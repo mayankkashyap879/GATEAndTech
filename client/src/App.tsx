@@ -24,6 +24,7 @@ import Discussions from "@/pages/Discussions";
 import ThreadDetail from "@/pages/ThreadDetail";
 import Shop from "@/pages/Shop";
 import MyPurchases from "@/pages/MyPurchases";
+import RoleManagement from "@/pages/RoleManagement";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -50,6 +51,7 @@ function Router() {
       <Route path="/tests/:id/edit" component={TestForm} />
       <Route path="/tests/:id" component={TakeTest} />
       <Route path="/attempts/:id/results" component={TestResults} />
+      <Route path="/admin/roles" component={RoleManagement} />
       <Route component={NotFound} />
     </Switch>
   );
