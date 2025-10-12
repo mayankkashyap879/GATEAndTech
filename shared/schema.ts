@@ -6,6 +6,7 @@ import {
   timestamp, 
   boolean, 
   integer, 
+  numeric,
   jsonb,
   pgEnum,
   index,
@@ -183,15 +184,13 @@ export const testResponses = pgTable("test_responses", {
 
 export const testSeries = pgTable("test_series", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  description: text("description"),
-  price: integer("price").notNull(), // in paise/cents
-  validityDays: integer("validity_days").notNull(), // e.g., 90, 180, 365
-  imageUrl: text("image_url"),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  price: numeric("price", { precision: 10, scale: 2 }).notNull(),
+  validityDays: integer("validity_days").notNull().default(90),
+  tier: varchar("tier", { length: 20 }).notNull().default("free"),
   isActive: boolean("is_active").default(true).notNull(),
-  createdBy: varchar("created_by").notNull().references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   activeIdx: index("test_series_active_idx").on(table.isActive),
 }));
@@ -383,11 +382,7 @@ export const testResponsesRelations = relations(testResponses, ({ one }) => ({
   }),
 }));
 
-export const testSeriesRelations = relations(testSeries, ({ one, many }) => ({
-  creator: one(users, {
-    fields: [testSeries.createdBy],
-    references: [users.id],
-  }),
+export const testSeriesRelations = relations(testSeries, ({ many }) => ({
   testSeriesTests: many(testSeriesTests),
   purchases: many(userPurchases),
   transactions: many(transactions),
@@ -549,10 +544,12 @@ export const selectTestAttemptSchema = createSelectSchema(testAttempts);
 
 // Test Series schemas
 export const insertTestSeriesSchema = createInsertSchema(testSeries, {
-  name: z.string().min(3).max(200),
-  price: z.number().int().nonnegative(),
+  title: z.string().min(3).max(200),
+  description: z.string().min(10),
+  price: z.string(), // numeric field comes as string
   validityDays: z.number().int().positive(),
-}).omit({ id: true, createdAt: true, updatedAt: true });
+  tier: z.enum(["free", "premium", "pro"]),
+}).omit({ id: true, createdAt: true });
 
 export const selectTestSeriesSchema = createSelectSchema(testSeries);
 
