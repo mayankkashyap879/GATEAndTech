@@ -104,6 +104,11 @@ export function roleRoutes(app: Express): void {
         });
       }
 
+      // Ensure at least one field is being updated
+      if (Object.keys(validation.data).length === 0) {
+        return res.status(400).json({ message: 'No fields to update' });
+      }
+
       const role = await roleStorage.updateRole(req.params.id, validation.data);
       
       // Log the action
