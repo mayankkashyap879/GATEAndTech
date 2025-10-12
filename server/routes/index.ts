@@ -8,6 +8,7 @@ import { testRoutes } from "./test.routes";
 import { discussionRoutes } from "./discussion.routes";
 import { analyticsRoutes } from "./analytics.routes";
 import { paymentRoutes } from "./payment.routes";
+import { roleRoutes } from "./role.routes";
 
 export function registerRoutes(app: Express): Server {
   // Register all route modules
@@ -19,6 +20,7 @@ export function registerRoutes(app: Express): Server {
   discussionRoutes(app);
   analyticsRoutes(app);
   paymentRoutes(app);
+  roleRoutes(app);
 
   // Create and return HTTP server (maintained for compatibility with server/index.ts)
   const httpServer = createServer(app);
