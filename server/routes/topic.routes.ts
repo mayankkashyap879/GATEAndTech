@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { storage } from "../storage";
-import { requireRole } from "../auth";
+import { can } from "../middleware/permissions";
 
 export function topicRoutes(app: Express): void {
   // ============================================================================
@@ -18,8 +18,8 @@ export function topicRoutes(app: Express): void {
     }
   });
 
-  // Create topic (admin/moderator only)
-  app.post("/api/topics", requireRole("admin", "moderator"), async (req: Request, res: Response) => {
+  // Create topic (requires create:Topic permission)
+  app.post("/api/topics", can('create', 'Topic'), async (req: Request, res: Response) => {
     try {
       // Generate slug from name if not provided
       const topicData = {

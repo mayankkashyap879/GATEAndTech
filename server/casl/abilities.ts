@@ -3,7 +3,7 @@ import type { User, Permission, Role } from '@shared/schema';
 
 // Define the app actions and subjects
 export type Action = 'create' | 'read' | 'update' | 'delete' | 'publish' | 'manage' | 'assign' | 'revoke' | 'export' | 'moderate';
-export type Subject = 'Question' | 'Test' | 'User' | 'Role' | 'Permission' | 'Analytics' | 'Discussion' | 'TestSeries' | 'Payment' | 'AuditLog' | 'all';
+export type Subject = 'Question' | 'Test' | 'Topic' | 'User' | 'Role' | 'Permission' | 'Analytics' | 'Discussion' | 'TestSeries' | 'Payment' | 'AuditLog' | 'all';
 
 export type AppAbility = MongoAbility<[Action, Subject]>;
 
@@ -48,6 +48,7 @@ export function defineAbilitiesFor(user: UserWithPermissions): AppAbility {
         // Moderators can manage questions and tests
         can(['create', 'read', 'update', 'delete', 'publish'], 'Question');
         can(['create', 'read', 'update', 'delete', 'publish'], 'Test');
+        can(['create', 'read', 'update', 'delete'], 'Topic');
         can(['create', 'read', 'update', 'delete', 'moderate'], 'Discussion');
         can('read', 'Analytics');
         can('read', 'TestSeries');
