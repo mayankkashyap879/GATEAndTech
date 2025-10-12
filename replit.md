@@ -43,7 +43,19 @@ The platform features a clean, responsive design using `shadcn/ui` components an
   - `server/routes/discussion.routes.ts` - Discussion forum
   - `server/routes/analytics.routes.ts` - Performance analytics
   - `server/routes/index.ts` - Route aggregator
-- **Frontend**: React.js with Vite for a fast and reactive user interface.
+- **Storage Layer**: Modularized data access layer for better maintainability:
+  - `server/storage/user.storage.ts` (175 lines) - User, session, and authentication token operations
+  - `server/storage/question.storage.ts` (126 lines) - Question and topic CRUD operations
+  - `server/storage/test.storage.ts` (163 lines) - Test, attempt, and response management
+  - `server/storage/payment.storage.ts` (206 lines) - Test series, purchases, and transaction operations
+  - `server/storage/discussion.storage.ts` (298 lines) - Discussion threads, posts, and analytics
+  - `server/storage/index.ts` (483 lines) - Main aggregator maintaining IStorage interface for backward compatibility
+- **Frontend**: React.js with Vite for a fast and reactive user interface. Large components have been refactored for maintainability:
+  - `client/src/pages/TakeTest.tsx` (549 lines) - Main test taking logic, state management, and API integration
+  - `client/src/components/test/QuestionPalette.tsx` (152 lines) - Question navigation sidebar with status indicators
+  - `client/src/components/test/TestInstructions.tsx` (123 lines) - Pre-test instructions and rules
+  - `client/src/components/test/TestSummary.tsx` (143 lines) - Pre-submission summary view
+  - `client/src/components/test/CalculatorDialog.tsx` (31 lines) - Calculator popup component
 - **Database**: PostgreSQL for robust data storage, managed with Drizzle ORM for type-safe interactions.
 - **State Management**: React Context API for authentication, TanStack Query for data fetching and caching.
 - **Routing**: Wouter for client-side navigation.
