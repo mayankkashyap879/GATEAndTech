@@ -21,6 +21,7 @@ The platform features a clean, responsive design using `shadcn/ui` components an
 - **Analytics & Performance Tracking**: Offers detailed insights into user performance through an analytics dashboard. Metrics include overall performance, topic-wise accuracy, difficulty-wise performance, and score trends.
 - **Discussion Forum**: A Q&A system allowing all authenticated users to create threads and post answers, fostering a community learning environment.
 - **Scalability Infrastructure**: Redis-based caching and BullMQ job queues for handling 10K+ concurrent users. Gracefully degrades to synchronous processing when Redis is unavailable. Supports TLS (rediss://) for secure managed Redis providers. Non-blocking cache operations using SCAN instead of KEYS.
+- **Database Optimization**: Production-ready indexing strategy for 10K+ concurrent users. 44 optimized composite indexes covering all hot query paths (discussions, test attempts, purchases, notifications, questions, tests). Eliminated redundant indexes on unique columns and low-selectivity boolean-only indexes to minimize write amplification. Composite indexes precisely match storage layer filter+sort patterns for optimal query performance.
 
 ### Feature Specifications
 - **User Management**: Dynamic role-based access control with CASL. Admins can create custom roles and assign granular permissions.

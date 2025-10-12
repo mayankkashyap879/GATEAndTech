@@ -49,7 +49,6 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
-  emailIdx: index("users_email_idx").on(table.email),
   providerIdx: index("users_provider_idx").on(table.authProvider, table.providerId),
 }));
 
@@ -61,7 +60,6 @@ export const sessions = pgTable("sessions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   userIdx: index("sessions_user_idx").on(table.userId),
-  tokenIdx: index("sessions_token_idx").on(table.token),
 }));
 
 export const verificationTokens = pgTable("verification_tokens", {
@@ -84,7 +82,9 @@ export const topics = pgTable("topics", {
   subject: text("subject").notNull(), // e.g., "Computer Science", "Electronics", "Mathematics"
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  subjectIdx: index("topics_subject_idx").on(table.subject),
+}));
 
 export const questions = pgTable("questions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -104,6 +104,10 @@ export const questions = pgTable("questions", {
 }, (table) => ({
   typeIdx: index("questions_type_idx").on(table.type),
   difficultyIdx: index("questions_difficulty_idx").on(table.difficulty),
+  createdByIdx: index("questions_created_by_idx").on(table.createdBy),
+  createdAtIdx: index("questions_created_at_idx").on(table.createdAt),
+  // Composite index for: WHERE isPublished = ? ORDER BY createdAt DESC
+  publishedCreatedIdx: index("questions_published_created_idx").on(table.isPublished, table.createdAt.desc()),
 }));
 
 export const questionTopics = pgTable("question_topics", {
@@ -111,6 +115,8 @@ export const questionTopics = pgTable("question_topics", {
   questionId: varchar("question_id").notNull().references(() => questions.id, { onDelete: "cascade" }),
   topicId: varchar("topic_id").notNull().references(() => topics.id, { onDelete: "cascade" }),
 }, (table) => ({
+  questionIdx: index("question_topics_question_idx").on(table.questionId),
+  topicIdx: index("question_topics_topic_idx").on(table.topicId),
   uniq: unique().on(table.questionId, table.topicId),
 }));
 
@@ -133,6 +139,10 @@ export const tests = pgTable("tests", {
 }, (table) => ({
   statusIdx: index("tests_status_idx").on(table.status),
   scheduledIdx: index("tests_scheduled_idx").on(table.scheduledAt),
+  createdByIdx: index("tests_created_by_idx").on(table.createdBy),
+  createdAtIdx: index("tests_created_at_idx").on(table.createdAt),
+  // Composite index for: WHERE status = ? AND isPro = ? ORDER BY scheduledAt
+  statusProScheduledIdx: index("tests_status_pro_scheduled_idx").on(table.status, table.isPro, table.scheduledAt),
 }));
 
 export const testQuestions = pgTable("test_questions", {
@@ -158,9 +168,13 @@ export const testAttempts = pgTable("test_attempts", {
   timeTaken: integer("time_taken"), // in seconds
   responses: jsonb("responses"), // Stores all responses for quick access
 }, (table) => ({
-  userIdx: index("test_attempts_user_idx").on(table.userId),
   testIdx: index("test_attempts_test_idx").on(table.testId),
   statusIdx: index("test_attempts_status_idx").on(table.status),
+  submittedAtIdx: index("test_attempts_submitted_at_idx").on(table.submittedAt),
+  // Composite index for: WHERE userId = ? ORDER BY startedAt DESC
+  userStartedIdx: index("test_attempts_user_started_idx").on(table.userId, table.startedAt.desc()),
+  // Composite index for: WHERE userId = ? AND status = ? ORDER BY startedAt DESC
+  userStatusStartedIdx: index("test_attempts_user_status_started_idx").on(table.userId, table.status, table.startedAt.desc()),
 }));
 
 export const testResponses = pgTable("test_responses", {
@@ -191,9 +205,7 @@ export const testSeries = pgTable("test_series", {
   tier: varchar("tier", { length: 20 }).notNull().default("free"),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-}, (table) => ({
-  activeIdx: index("test_series_active_idx").on(table.isActive),
-}));
+});
 
 export const testSeriesTests = pgTable("test_series_tests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -214,9 +226,9 @@ export const userPurchases = pgTable("user_purchases", {
   expiryDate: timestamp("expiry_date").notNull(),
   transactionId: varchar("transaction_id").references(() => transactions.id),
 }, (table) => ({
-  userIdx: index("user_purchases_user_idx").on(table.userId),
-  statusIdx: index("user_purchases_status_idx").on(table.status),
-  expiryIdx: index("user_purchases_expiry_idx").on(table.expiryDate),
+  testSeriesIdx: index("user_purchases_test_series_idx").on(table.testSeriesId),
+  // Composite index for: WHERE userId = ? [AND status = ?] ORDER BY purchaseDate DESC
+  userStatusDateIdx: index("user_purchases_user_status_date_idx").on(table.userId, table.status, table.purchaseDate.desc()),
   uniq: unique().on(table.userId, table.testSeriesId),
 }));
 
@@ -235,6 +247,7 @@ export const transactions = pgTable("transactions", {
   userIdx: index("transactions_user_idx").on(table.userId),
   orderIdx: index("transactions_order_idx").on(table.razorpayOrderId),
   statusIdx: index("transactions_status_idx").on(table.status),
+  testSeriesIdx: index("transactions_test_series_idx").on(table.testSeriesId),
 }));
 
 // ============================================================================
@@ -255,7 +268,10 @@ export const discussionThreads = pgTable("discussion_threads", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
   authorIdx: index("discussion_threads_author_idx").on(table.authorId),
-  topicIdx: index("discussion_threads_topic_idx").on(table.topicId),
+  questionIdx: index("discussion_threads_question_idx").on(table.questionId),
+  createdAtIdx: index("discussion_threads_created_at_idx").on(table.createdAt),
+  // Composite index for: WHERE topicId = ? ORDER BY isPinned DESC, updatedAt DESC
+  topicPinnedUpdatedIdx: index("discussion_threads_topic_pinned_updated_idx").on(table.topicId, table.isPinned.desc(), table.updatedAt.desc()),
 }));
 
 export const discussionPosts = pgTable("discussion_posts", {
@@ -268,8 +284,9 @@ export const discussionPosts = pgTable("discussion_posts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
-  threadIdx: index("discussion_posts_thread_idx").on(table.threadId),
   authorIdx: index("discussion_posts_author_idx").on(table.authorId),
+  // Composite index for: WHERE threadId = ? ORDER BY createdAt ASC
+  threadCreatedIdx: index("discussion_posts_thread_created_idx").on(table.threadId, table.createdAt.asc()),
 }));
 
 // ============================================================================
@@ -286,8 +303,8 @@ export const notifications = pgTable("notifications", {
   isRead: boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
-  userIdx: index("notifications_user_idx").on(table.userId),
-  readIdx: index("notifications_read_idx").on(table.isRead),
+  // Composite index for: WHERE userId = ? [AND isRead = ?] ORDER BY createdAt DESC
+  userReadCreatedIdx: index("notifications_user_read_created_idx").on(table.userId, table.isRead, table.createdAt.desc()),
 }));
 
 // ============================================================================
