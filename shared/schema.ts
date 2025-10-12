@@ -199,7 +199,7 @@ export const testSeriesTests = pgTable("test_series_tests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   testSeriesId: varchar("test_series_id").notNull().references(() => testSeries.id, { onDelete: "cascade" }),
   testId: varchar("test_id").notNull().references(() => tests.id, { onDelete: "cascade" }),
-  order: integer("order").notNull(),
+  order: integer("sequence_order").notNull(),
 }, (table) => ({
   seriesIdx: index("test_series_tests_series_idx").on(table.testSeriesId),
   uniq: unique().on(table.testSeriesId, table.testId),
