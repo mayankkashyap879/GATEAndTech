@@ -25,7 +25,7 @@ export const themeEnum = pgEnum("theme", ["light", "dark", "system"]);
 export const questionTypeEnum = pgEnum("question_type", ["mcq_single", "mcq_multiple", "numerical"]);
 export const difficultyEnum = pgEnum("difficulty", ["easy", "medium", "hard"]);
 export const testStatusEnum = pgEnum("test_status", ["draft", "published", "archived"]);
-export const attemptStatusEnum = pgEnum("attempt_status", ["in_progress", "submitted", "evaluated"]);
+export const attemptStatusEnum = pgEnum("attempt_status", ["in_progress", "processing", "submitted", "evaluated"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "success", "failed", "refunded"]);
 export const purchaseStatusEnum = pgEnum("purchase_status", ["active", "expired"]);
 

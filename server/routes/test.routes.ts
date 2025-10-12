@@ -5,6 +5,7 @@ import { can } from "../middleware/permissions";
 import { insertTestSchema } from "@shared/schema";
 import { z } from "zod";
 import { testSubmitLimiter } from "../middleware/rate-limit.js";
+import { queueHelpers } from "../queue";
 
 // Helper function to check if user has access to a test
 async function userHasAccessToTest(userId: string, testId: string, userRole: string): Promise<boolean> {
@@ -256,62 +257,21 @@ export function testRoutes(app: Express): void {
         return res.status(403).json({ error: "Forbidden" });
       }
       
-      // Get test and questions
-      const test = await storage.getTest(attempt.testId);
-      const questions = await storage.getTestQuestions(attempt.testId);
-      const responses = await storage.getTestAttemptResponses(req.params.id);
-      
-      // Calculate score
-      let totalScore = 0;
-      for (const response of responses) {
-        const question = questions.find(q => q.id === response.questionId);
-        if (!question) continue;
-        
-        let isCorrect = false;
-        let marksAwarded = 0;
-        
-        // Skip scoring if answer is empty/cleared (unanswered)
-        if (!response.selectedAnswer || response.selectedAnswer.trim() === "") {
-          // Update response as unanswered
-          await storage.updateTestResponse(response.id, {
-            isCorrect: false,
-            marksAwarded: 0,
-          });
-          continue;
-        }
-        
-        if (question.type === "numerical") {
-          isCorrect = response.selectedAnswer === question.correctAnswer;
-          marksAwarded = isCorrect ? question.marks : -question.negativeMarks;
-        } else if (question.type === "mcq_single") {
-          const correctOption = (question.options as any)?.find((opt: any) => opt.isCorrect);
-          isCorrect = response.selectedAnswer === correctOption?.id;
-          marksAwarded = isCorrect ? question.marks : -question.negativeMarks;
-        } else if (question.type === "mcq_multiple") {
-          const correctOptions = (question.options as any)?.filter((opt: any) => opt.isCorrect).map((opt: any) => opt.id).sort().join(",");
-          const selectedOptions = response.selectedAnswer?.split(",").filter(Boolean).sort().join(",");
-          isCorrect = selectedOptions === correctOptions;
-          marksAwarded = isCorrect ? question.marks : -question.negativeMarks;
-        }
-        
-        // Update response with correctness and marks
-        await storage.updateTestResponse(response.id, {
-          isCorrect,
-          marksAwarded,
-        });
-        
-        totalScore += marksAwarded;
-      }
-      
+      // Update attempt to processing status
       const updatedAttempt = await storage.updateTestAttempt(req.params.id, {
-        status: "submitted",
+        status: "processing",
         submittedAt: new Date(),
-        score: totalScore,
-        maxScore: test?.totalMarks || 0,
         timeTaken: req.body.timeTaken,
       });
       
-      res.json(updatedAttempt);
+      // Queue scoring job for background processing
+      await queueHelpers.scoreTest(attempt.id, attempt.userId, attempt.testId);
+      
+      // Return immediate response
+      res.json({
+        ...updatedAttempt,
+        message: "Test submitted successfully. Your score is being calculated."
+      });
     } catch (error) {
       console.error("Error submitting attempt:", error);
       res.status(500).json({ error: "Internal server error" });

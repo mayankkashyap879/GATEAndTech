@@ -94,10 +94,11 @@ if (connection) {
         // Calculate score
         const { score, maxScore } = await calculateTestScore(attemptId, testId);
         
-        // Update attempt with score
+        // Update attempt with score and status
         await storage.updateTestAttempt(attemptId, {
           score,
           maxScore,
+          status: "submitted",
         });
         
         console.log(`✅ Test scored: ${score}/${maxScore} for attempt ${attemptId}`);
