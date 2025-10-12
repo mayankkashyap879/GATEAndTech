@@ -20,54 +20,87 @@ function requireAuth(req: Request, res: Response, next: Function) {
 export function paymentRoutes(app: Express) {
   
   // ============================================================================
-  // GET PLANS - Public endpoint to view pricing
+  // GET TEST SERIES - Shop page
   // ============================================================================
   
-  app.get("/api/plans", async (req: Request, res: Response) => {
+  app.get("/api/test-series", async (req: Request, res: Response) => {
     try {
-      const plans = await storage.getActivePlans();
-      res.json(plans);
+      const testSeriesList = await storage.getAllTestSeries({ isActive: true });
+      res.json(testSeriesList);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
   // ============================================================================
-  // CREATE RAZORPAY ORDER - Initiates payment flow
+  // GET SINGLE TEST SERIES - With tests
+  // ============================================================================
+  
+  app.get("/api/test-series/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      
+      const testSeriesData = await storage.getTestSeries(id);
+      if (!testSeriesData) {
+        return res.status(404).json({ error: "Test series not found" });
+      }
+
+      const tests = await storage.getTestSeriesTests(id);
+
+      res.json({
+        ...testSeriesData,
+        tests,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================================================
+  // CREATE RAZORPAY ORDER - Purchase test series
   // ============================================================================
   
   app.post("/api/payments/create-order", requireAuth, async (req: Request, res: Response) => {
     try {
-      const { planId } = req.body;
+      const { testSeriesId } = req.body;
       
-      if (!planId) {
-        return res.status(400).json({ error: "Plan ID is required" });
+      if (!testSeriesId) {
+        return res.status(400).json({ error: "Test series ID is required" });
       }
 
-      const plan = await storage.getPlan(planId);
-      if (!plan) {
-        return res.status(404).json({ error: "Plan not found" });
+      const testSeriesData = await storage.getTestSeries(testSeriesId);
+      if (!testSeriesData) {
+        return res.status(404).json({ error: "Test series not found" });
       }
 
-      if (!plan.isActive) {
-        return res.status(400).json({ error: "This plan is not available" });
+      if (!testSeriesData.isActive) {
+        return res.status(400).json({ error: "This test series is not available" });
       }
 
-      if (plan.price === 0) {
-        return res.status(400).json({ error: "Cannot create order for free plan" });
+      if (testSeriesData.price === 0) {
+        return res.status(400).json({ error: "Cannot create order for free test series" });
       }
 
       const user = req.user as any;
 
+      // Check if already purchased
+      const existingPurchase = await storage.getUserPurchase(user.id, testSeriesId);
+      if (existingPurchase && existingPurchase.status === "active") {
+        const now = new Date();
+        if (existingPurchase.expiryDate > now) {
+          return res.status(400).json({ error: "You already have an active purchase for this test series" });
+        }
+      }
+
       // Create Razorpay order
       const orderOptions = {
-        amount: plan.price, // amount in paise
+        amount: testSeriesData.price, // amount in paise
         currency: "INR",
         receipt: `receipt_${Date.now()}`,
         notes: {
           userId: user.id,
-          planId: plan.id,
-          planType: plan.type,
+          testSeriesId: testSeriesData.id,
+          validityDays: testSeriesData.validityDays.toString(),
         },
       };
 
@@ -76,7 +109,8 @@ export function paymentRoutes(app: Express) {
       // Create transaction record
       const transaction = await storage.createTransaction({
         userId: user.id,
-        amount: plan.price,
+        testSeriesId: testSeriesData.id,
+        amount: testSeriesData.price,
         currency: "INR",
         razorpayOrderId: order.id,
         status: "pending",
@@ -96,7 +130,7 @@ export function paymentRoutes(app: Express) {
   });
 
   // ============================================================================
-  // VERIFY PAYMENT - Confirms payment success
+  // VERIFY PAYMENT - Confirms payment and grants access
   // ============================================================================
   
   app.post("/api/payments/verify", requireAuth, async (req: Request, res: Response) => {
@@ -134,57 +168,50 @@ export function paymentRoutes(app: Express) {
         status: "success",
       });
 
-      // Get the Razorpay order to extract plan details from notes
+      // Get the Razorpay order to extract test series details from notes
       const order = await razorpay.orders.fetch(razorpay_order_id);
-      const planId = order.notes?.planId;
+      const testSeriesIdRaw = order.notes?.testSeriesId;
+      const validityDays = parseInt(order.notes?.validityDays || "90");
 
-      if (!planId) {
-        return res.status(400).json({ error: "Plan information not found" });
+      if (!testSeriesIdRaw) {
+        return res.status(400).json({ error: "Test series information not found" });
       }
 
-      const plan = await storage.getPlan(String(planId));
-      if (!plan) {
-        return res.status(404).json({ error: "Plan not found" });
+      const testSeriesId = String(testSeriesIdRaw);
+      const testSeriesData = await storage.getTestSeries(testSeriesId);
+      if (!testSeriesData) {
+        return res.status(404).json({ error: "Test series not found" });
       }
 
-      // Check if user has active subscription and expire it
-      const activeSubscription = await storage.getUserActiveSubscription(user.id);
-      if (activeSubscription) {
-        await storage.updateSubscription(activeSubscription.id, {
-          status: "expired",
+      // Calculate expiry date
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + validityDays);
+
+      // Check if user already has a purchase (could be expired)
+      const existingPurchase = await storage.getUserPurchase(user.id, testSeriesId);
+      
+      if (existingPurchase) {
+        // Update existing purchase
+        await storage.updateUserPurchase(existingPurchase.id, {
+          status: "active",
+          expiryDate,
+          transactionId: transaction.id,
+        });
+      } else {
+        // Create new purchase
+        await storage.createUserPurchase({
+          userId: user.id,
+          testSeriesId: testSeriesId,
+          status: "active",
+          expiryDate,
+          transactionId: transaction.id,
         });
       }
 
-      // Create new subscription
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + plan.duration);
-
-      const subscription = await storage.createSubscription({
-        userId: user.id,
-        planId: plan.id,
-        planType: plan.type,
-        status: "active",
-        startDate,
-        endDate,
-        autoRenew: false,
-      });
-
-      // Update transaction with subscription ID
-      await storage.updateTransaction(transaction.id, {
-        subscriptionId: subscription.id,
-      });
-
-      // Update user's current plan
-      await storage.updateUser(user.id, {
-        currentPlan: plan.type,
-        subscriptionExpiresAt: endDate,
-      });
-
       res.json({
         success: true,
-        subscription,
-        message: "Payment verified and subscription activated",
+        expiryDate,
+        message: "Payment verified and access granted",
       });
     } catch (error: any) {
       console.error("Error verifying payment:", error);
@@ -246,26 +273,16 @@ export function paymentRoutes(app: Express) {
   });
 
   // ============================================================================
-  // GET USER SUBSCRIPTION - Current subscription status
+  // GET USER PURCHASES - All purchases with status
   // ============================================================================
   
-  app.get("/api/payments/subscription", requireAuth, async (req: Request, res: Response) => {
+  app.get("/api/payments/purchases", requireAuth, async (req: Request, res: Response) => {
     try {
       const user = req.user as any;
       
-      const subscription = await storage.getUserActiveSubscription(user.id);
+      const purchases = await storage.getUserPurchases(user.id);
       
-      if (!subscription) {
-        return res.json({
-          hasSubscription: false,
-          currentPlan: "free",
-        });
-      }
-
-      res.json({
-        hasSubscription: true,
-        subscription,
-      });
+      res.json(purchases);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -289,27 +306,17 @@ export function paymentRoutes(app: Express) {
   });
 
   // ============================================================================
-  // CANCEL SUBSCRIPTION - User cancels auto-renewal
+  // CHECK ACCESS - Check if user has access to test series
   // ============================================================================
   
-  app.post("/api/payments/subscription/cancel", requireAuth, async (req: Request, res: Response) => {
+  app.get("/api/payments/check-access/:testSeriesId", requireAuth, async (req: Request, res: Response) => {
     try {
       const user = req.user as any;
+      const { testSeriesId } = req.params;
       
-      const subscription = await storage.getUserActiveSubscription(user.id);
+      const hasAccess = await storage.checkUserHasAccess(user.id, testSeriesId);
       
-      if (!subscription) {
-        return res.status(404).json({ error: "No active subscription found" });
-      }
-
-      await storage.updateSubscription(subscription.id, {
-        autoRenew: false,
-      });
-
-      res.json({
-        success: true,
-        message: "Auto-renewal cancelled. Subscription will expire on schedule.",
-      });
+      res.json({ hasAccess });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

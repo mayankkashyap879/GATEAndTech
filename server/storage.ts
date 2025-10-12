@@ -10,8 +10,9 @@ import {
   testQuestions,
   testAttempts,
   testResponses,
-  plans,
-  subscriptions,
+  testSeries,
+  testSeriesTests,
+  userPurchases,
   transactions,
   discussionThreads,
   discussionPosts,
@@ -32,10 +33,12 @@ import {
   type InsertTestAttempt,
   type TestResponse,
   type InsertTestResponse,
-  type Plan,
-  type InsertPlan,
-  type Subscription,
-  type InsertSubscription,
+  type TestSeries,
+  type InsertTestSeries,
+  type TestSeriesTest,
+  type InsertTestSeriesTest,
+  type UserPurchase,
+  type InsertUserPurchase,
   type Transaction,
   type InsertTransaction,
   type DiscussionThread,
@@ -119,19 +122,22 @@ export interface IStorage {
   getTestAttemptResponses(attemptId: string): Promise<TestResponse[]>;
   getTestResponse(attemptId: string, questionId: string): Promise<TestResponse | undefined>;
   
-  // Plan operations
-  getPlan(id: string): Promise<Plan | undefined>;
-  getPlanByType(type: string): Promise<Plan | undefined>;
-  getPlans(): Promise<Plan[]>;
-  getActivePlans(): Promise<Plan[]>;
-  createPlan(plan: InsertPlan): Promise<Plan>;
-  updatePlan(id: string, data: Partial<InsertPlan>): Promise<Plan | undefined>;
+  // Test Series operations
+  getTestSeries(id: string): Promise<TestSeries | undefined>;
+  getAllTestSeries(filters?: { isActive?: boolean }): Promise<TestSeries[]>;
+  createTestSeries(testSeries: InsertTestSeries): Promise<TestSeries>;
+  updateTestSeries(id: string, data: Partial<InsertTestSeries>): Promise<TestSeries | undefined>;
+  addTestToSeries(testSeriesId: string, testId: string, order: number): Promise<void>;
+  removeTestFromSeries(testSeriesId: string, testId: string): Promise<void>;
+  getTestSeriesTests(testSeriesId: string): Promise<Test[]>;
+  getTestSeriesByTestId(testId: string): Promise<TestSeries | undefined>;
   
-  // Subscription operations
-  getUserSubscription(userId: string): Promise<Subscription | undefined>;
-  getUserActiveSubscription(userId: string): Promise<Subscription | undefined>;
-  createSubscription(subscription: InsertSubscription): Promise<Subscription>;
-  updateSubscription(id: string, data: Partial<InsertSubscription>): Promise<Subscription | undefined>;
+  // User Purchase operations
+  getUserPurchase(userId: string, testSeriesId: string): Promise<UserPurchase | undefined>;
+  getUserPurchases(userId: string, filters?: { status?: string }): Promise<UserPurchase[]>;
+  createUserPurchase(purchase: InsertUserPurchase): Promise<UserPurchase>;
+  updateUserPurchase(id: string, data: Partial<InsertUserPurchase>): Promise<UserPurchase | undefined>;
+  checkUserHasAccess(userId: string, testSeriesId: string): Promise<boolean>;
   
   // Transaction operations
   getTransaction(id: string): Promise<Transaction | undefined>;
@@ -277,7 +283,6 @@ export class DatabaseStorage implements IStorage {
         avatar: data.avatar,
         role: "student",
         theme: "system",
-        currentPlan: "free",
         twofaEnabled: false,
       })
       .returning();
@@ -645,106 +650,150 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ============================================================================
-  // PLAN OPERATIONS
+  // TEST SERIES OPERATIONS
   // ============================================================================
 
-  async getPlan(id: string): Promise<Plan | undefined> {
-    const [plan] = await db
+  async getTestSeries(id: string): Promise<TestSeries | undefined> {
+    const [series] = await db
       .select()
-      .from(plans)
-      .where(eq(plans.id, id));
-    return plan || undefined;
+      .from(testSeries)
+      .where(eq(testSeries.id, id));
+    return series || undefined;
   }
 
-  async getPlanByType(type: string): Promise<Plan | undefined> {
-    const [plan] = await db
-      .select()
-      .from(plans)
-      .where(eq(plans.type, type as any));
-    return plan || undefined;
+  async getAllTestSeries(filters?: { isActive?: boolean }): Promise<TestSeries[]> {
+    const query = filters?.isActive !== undefined
+      ? db.select().from(testSeries).where(eq(testSeries.isActive, filters.isActive))
+      : db.select().from(testSeries);
+
+    return await query.orderBy(asc(testSeries.price));
   }
 
-  async getPlans(): Promise<Plan[]> {
-    return await db
-      .select()
-      .from(plans)
-      .orderBy(asc(plans.price));
-  }
-
-  async getActivePlans(): Promise<Plan[]> {
-    return await db
-      .select()
-      .from(plans)
-      .where(eq(plans.isActive, true))
-      .orderBy(asc(plans.price));
-  }
-
-  async createPlan(insertPlan: InsertPlan): Promise<Plan> {
-    const [plan] = await db
-      .insert(plans)
-      .values(insertPlan)
+  async createTestSeries(insertTestSeries: InsertTestSeries): Promise<TestSeries> {
+    const [series] = await db
+      .insert(testSeries)
+      .values(insertTestSeries)
       .returning();
-    return plan;
+    return series;
   }
 
-  async updatePlan(id: string, data: Partial<InsertPlan>): Promise<Plan | undefined> {
-    const [plan] = await db
-      .update(plans)
+  async updateTestSeries(id: string, data: Partial<InsertTestSeries>): Promise<TestSeries | undefined> {
+    const [series] = await db
+      .update(testSeries)
       .set(data)
-      .where(eq(plans.id, id))
+      .where(eq(testSeries.id, id))
       .returning();
-    return plan || undefined;
+    return series || undefined;
   }
 
-  // ============================================================================
-  // SUBSCRIPTION OPERATIONS
-  // ============================================================================
+  async addTestToSeries(testSeriesId: string, testId: string, order: number): Promise<void> {
+    await db
+      .insert(testSeriesTests)
+      .values({ testSeriesId, testId, order });
+  }
 
-  async getUserSubscription(userId: string): Promise<Subscription | undefined> {
-    const [subscription] = await db
-      .select()
-      .from(subscriptions)
+  async removeTestFromSeries(testSeriesId: string, testId: string): Promise<void> {
+    await db
+      .delete(testSeriesTests)
       .where(
         and(
-          eq(subscriptions.userId, userId),
-          eq(subscriptions.status, "active")
+          eq(testSeriesTests.testSeriesId, testSeriesId),
+          eq(testSeriesTests.testId, testId)
         )
-      )
-      .orderBy(desc(subscriptions.createdAt))
-      .limit(1);
-    return subscription || undefined;
+      );
   }
 
-  async getUserActiveSubscription(userId: string): Promise<Subscription | undefined> {
-    const [subscription] = await db
+  async getTestSeriesTests(testSeriesId: string): Promise<Test[]> {
+    const result = await db
+      .select({
+        test: tests,
+      })
+      .from(testSeriesTests)
+      .innerJoin(tests, eq(testSeriesTests.testId, tests.id))
+      .where(eq(testSeriesTests.testSeriesId, testSeriesId))
+      .orderBy(asc(testSeriesTests.order));
+
+    return result.map(r => r.test);
+  }
+
+  async getTestSeriesByTestId(testId: string): Promise<TestSeries | undefined> {
+    const result = await db
+      .select({
+        testSeries: testSeries,
+      })
+      .from(testSeriesTests)
+      .innerJoin(testSeries, eq(testSeriesTests.testSeriesId, testSeries.id))
+      .where(eq(testSeriesTests.testId, testId))
+      .limit(1);
+
+    return result[0]?.testSeries || undefined;
+  }
+
+  // ============================================================================
+  // USER PURCHASE OPERATIONS
+  // ============================================================================
+
+  async getUserPurchase(userId: string, testSeriesId: string): Promise<UserPurchase | undefined> {
+    const [purchase] = await db
       .select()
-      .from(subscriptions)
+      .from(userPurchases)
       .where(
         and(
-          eq(subscriptions.userId, userId),
-          eq(subscriptions.status, "active")
+          eq(userPurchases.userId, userId),
+          eq(userPurchases.testSeriesId, testSeriesId)
         )
-      )
-      .orderBy(desc(subscriptions.createdAt))
-      .limit(1);
-    return subscription || undefined;
+      );
+    return purchase || undefined;
   }
 
-  async createSubscription(insertSubscription: InsertSubscription): Promise<Subscription> {
-    const [subscription] = await db
-      .insert(subscriptions)
-      .values(insertSubscription)
+  async getUserPurchases(userId: string, filters?: { status?: string }): Promise<UserPurchase[]> {
+    const conditions = [eq(userPurchases.userId, userId)];
+    
+    if (filters?.status) {
+      conditions.push(eq(userPurchases.status, filters.status as any));
+    }
+
+    return await db
+      .select()
+      .from(userPurchases)
+      .where(and(...conditions))
+      .orderBy(desc(userPurchases.purchaseDate));
+  }
+
+  async createUserPurchase(insertPurchase: InsertUserPurchase): Promise<UserPurchase> {
+    const [purchase] = await db
+      .insert(userPurchases)
+      .values(insertPurchase)
       .returning();
-    return subscription;
+    return purchase;
   }
 
-  async updateSubscription(id: string, data: Partial<InsertSubscription>): Promise<Subscription | undefined> {
-    const [subscription] = await db
-      .update(subscriptions)
+  async updateUserPurchase(id: string, data: Partial<InsertUserPurchase>): Promise<UserPurchase | undefined> {
+    const [purchase] = await db
+      .update(userPurchases)
       .set(data)
-      .where(eq(subscriptions.id, id))
+      .where(eq(userPurchases.id, id))
       .returning();
-    return subscription || undefined;
+    return purchase || undefined;
+  }
+
+  async checkUserHasAccess(userId: string, testSeriesId: string): Promise<boolean> {
+    const [purchase] = await db
+      .select()
+      .from(userPurchases)
+      .where(
+        and(
+          eq(userPurchases.userId, userId),
+          eq(userPurchases.testSeriesId, testSeriesId),
+          eq(userPurchases.status, "active")
+        )
+      );
+    
+    if (!purchase) return false;
+    
+    // Check if not expired
+    const now = new Date();
+    return purchase.expiryDate > now;
   }
 
   // ============================================================================

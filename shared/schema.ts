@@ -25,9 +25,8 @@ export const questionTypeEnum = pgEnum("question_type", ["mcq_single", "mcq_mult
 export const difficultyEnum = pgEnum("difficulty", ["easy", "medium", "hard"]);
 export const testStatusEnum = pgEnum("test_status", ["draft", "published", "archived"]);
 export const attemptStatusEnum = pgEnum("attempt_status", ["in_progress", "submitted", "evaluated"]);
-export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "expired", "cancelled"]);
-export const planTypeEnum = pgEnum("plan_type", ["free", "premium", "pro"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "success", "failed", "refunded"]);
+export const purchaseStatusEnum = pgEnum("purchase_status", ["active", "expired"]);
 
 // ============================================================================
 // USERS & AUTHENTICATION
@@ -46,8 +45,6 @@ export const users = pgTable("users", {
   theme: themeEnum("theme").default("system").notNull(),
   twofaEnabled: boolean("twofa_enabled").default(false).notNull(),
   twofaSecret: text("twofa_secret"),
-  currentPlan: planTypeEnum("current_plan").default("free").notNull(),
-  subscriptionExpiresAt: timestamp("subscription_expires_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
@@ -181,49 +178,59 @@ export const testResponses = pgTable("test_responses", {
 }));
 
 // ============================================================================
-// SUBSCRIPTIONS & PAYMENTS
+// TEST SERIES & PURCHASES
 // ============================================================================
 
-export const plans = pgTable("plans", {
+export const testSeries = pgTable("test_series", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(), // "Free", "Premium", "Pro"
-  type: planTypeEnum("type").notNull().unique(),
-  price: integer("price").notNull(), // in paise/cents (0 for free)
-  duration: integer("duration").notNull(), // in days
-  maxTests: integer("max_tests"), // null = unlimited
-  maxTestAttempts: integer("max_test_attempts"), // null = unlimited
-  features: jsonb("features").notNull(), // Array of feature strings
+  name: text("name").notNull(),
+  description: text("description"),
+  price: integer("price").notNull(), // in paise/cents
+  validityDays: integer("validity_days").notNull(), // e.g., 90, 180, 365
+  imageUrl: text("image_url"),
   isActive: boolean("is_active").default(true).notNull(),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  activeIdx: index("test_series_active_idx").on(table.isActive),
+}));
 
-export const subscriptions = pgTable("subscriptions", {
+export const testSeriesTests = pgTable("test_series_tests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  testSeriesId: varchar("test_series_id").notNull().references(() => testSeries.id, { onDelete: "cascade" }),
+  testId: varchar("test_id").notNull().references(() => tests.id, { onDelete: "cascade" }),
+  order: integer("order").notNull(),
+}, (table) => ({
+  seriesIdx: index("test_series_tests_series_idx").on(table.testSeriesId),
+  uniq: unique().on(table.testSeriesId, table.testId),
+}));
+
+export const userPurchases = pgTable("user_purchases", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  planId: varchar("plan_id").notNull().references(() => plans.id),
-  planType: planTypeEnum("plan_type").notNull(),
-  status: subscriptionStatusEnum("status").default("active").notNull(),
-  startDate: timestamp("start_date").defaultNow().notNull(),
-  endDate: timestamp("end_date").notNull(),
-  razorpaySubscriptionId: text("razorpay_subscription_id"),
-  autoRenew: boolean("auto_renew").default(false).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  testSeriesId: varchar("test_series_id").notNull().references(() => testSeries.id, { onDelete: "cascade" }),
+  status: purchaseStatusEnum("status").default("active").notNull(),
+  purchaseDate: timestamp("purchase_date").defaultNow().notNull(),
+  expiryDate: timestamp("expiry_date").notNull(),
+  transactionId: varchar("transaction_id").references(() => transactions.id),
 }, (table) => ({
-  userIdx: index("subscriptions_user_idx").on(table.userId),
-  statusIdx: index("subscriptions_status_idx").on(table.status),
+  userIdx: index("user_purchases_user_idx").on(table.userId),
+  statusIdx: index("user_purchases_status_idx").on(table.status),
+  expiryIdx: index("user_purchases_expiry_idx").on(table.expiryDate),
+  uniq: unique().on(table.userId, table.testSeriesId),
 }));
 
 export const transactions = pgTable("transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  subscriptionId: varchar("subscription_id").references(() => subscriptions.id),
+  testSeriesId: varchar("test_series_id").references(() => testSeries.id),
   amount: integer("amount").notNull(), // in paise/cents
   currency: text("currency").default("INR").notNull(),
   razorpayPaymentId: text("razorpay_payment_id"),
   razorpayOrderId: text("razorpay_order_id").notNull(),
   razorpaySignature: text("razorpay_signature"),
   status: paymentStatusEnum("status").default("pending").notNull(),
-  invoiceUrl: text("invoice_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   userIdx: index("transactions_user_idx").on(table.userId),
@@ -292,8 +299,9 @@ export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),
   questionsCreated: many(questions),
   testsCreated: many(tests),
+  testSeriesCreated: many(testSeries),
   testAttempts: many(testAttempts),
-  subscriptions: many(subscriptions),
+  purchases: many(userPurchases),
   transactions: many(transactions),
   threadsCreated: many(discussionThreads),
   postsCreated: many(discussionPosts),
@@ -375,20 +383,40 @@ export const testResponsesRelations = relations(testResponses, ({ one }) => ({
   }),
 }));
 
-export const plansRelations = relations(plans, ({ many }) => ({
-  subscriptions: many(subscriptions),
-}));
-
-export const subscriptionsRelations = relations(subscriptions, ({ one, many }) => ({
-  user: one(users, {
-    fields: [subscriptions.userId],
+export const testSeriesRelations = relations(testSeries, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [testSeries.createdBy],
     references: [users.id],
   }),
-  plan: one(plans, {
-    fields: [subscriptions.planId],
-    references: [plans.id],
-  }),
+  testSeriesTests: many(testSeriesTests),
+  purchases: many(userPurchases),
   transactions: many(transactions),
+}));
+
+export const testSeriesTestsRelations = relations(testSeriesTests, ({ one }) => ({
+  testSeries: one(testSeries, {
+    fields: [testSeriesTests.testSeriesId],
+    references: [testSeries.id],
+  }),
+  test: one(tests, {
+    fields: [testSeriesTests.testId],
+    references: [tests.id],
+  }),
+}));
+
+export const userPurchasesRelations = relations(userPurchases, ({ one }) => ({
+  user: one(users, {
+    fields: [userPurchases.userId],
+    references: [users.id],
+  }),
+  testSeries: one(testSeries, {
+    fields: [userPurchases.testSeriesId],
+    references: [testSeries.id],
+  }),
+  transaction: one(transactions, {
+    fields: [userPurchases.transactionId],
+    references: [transactions.id],
+  }),
 }));
 
 export const transactionsRelations = relations(transactions, ({ one }) => ({
@@ -396,9 +424,9 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
     fields: [transactions.userId],
     references: [users.id],
   }),
-  subscription: one(subscriptions, {
-    fields: [transactions.subscriptionId],
-    references: [subscriptions.id],
+  testSeries: one(testSeries, {
+    fields: [transactions.testSeriesId],
+    references: [testSeries.id],
   }),
 }));
 
@@ -468,7 +496,6 @@ export const adminUpdateUserSchema = z.object({
   avatar: z.string().url().optional().nullable(),
   theme: z.enum(["light", "dark", "system"]).optional(),
   role: z.enum(["student", "moderator", "admin"]).optional(),
-  currentPlan: z.enum(["free", "premium", "pro"]).optional(),
   twofaEnabled: z.boolean().optional(),
 });
 
@@ -520,22 +547,22 @@ export const insertTestAttemptSchema = createInsertSchema(testAttempts).omit({
 
 export const selectTestAttemptSchema = createSelectSchema(testAttempts);
 
-// Plan schemas
-export const insertPlanSchema = createInsertSchema(plans, {
-  name: z.string().min(2).max(50),
+// Test Series schemas
+export const insertTestSeriesSchema = createInsertSchema(testSeries, {
+  name: z.string().min(3).max(200),
   price: z.number().int().nonnegative(),
-  duration: z.number().int().positive(),
-}).omit({ id: true, createdAt: true });
+  validityDays: z.number().int().positive(),
+}).omit({ id: true, createdAt: true, updatedAt: true });
 
-export const selectPlanSchema = createSelectSchema(plans);
+export const selectTestSeriesSchema = createSelectSchema(testSeries);
 
-// Subscription schemas
-export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ 
+// User Purchase schemas
+export const insertUserPurchaseSchema = createInsertSchema(userPurchases).omit({ 
   id: true, 
-  createdAt: true 
+  purchaseDate: true 
 });
 
-export const selectSubscriptionSchema = createSelectSchema(subscriptions);
+export const selectUserPurchaseSchema = createSelectSchema(userPurchases);
 
 // Transaction schemas
 export const insertTransactionSchema = createInsertSchema(transactions, {
@@ -590,11 +617,14 @@ export type InsertTestAttempt = z.infer<typeof insertTestAttemptSchema>;
 export type TestResponse = typeof testResponses.$inferSelect;
 export type InsertTestResponse = typeof testResponses.$inferInsert;
 
-export type Plan = typeof plans.$inferSelect;
-export type InsertPlan = z.infer<typeof insertPlanSchema>;
+export type TestSeries = typeof testSeries.$inferSelect;
+export type InsertTestSeries = z.infer<typeof insertTestSeriesSchema>;
 
-export type Subscription = typeof subscriptions.$inferSelect;
-export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type TestSeriesTest = typeof testSeriesTests.$inferSelect;
+export type InsertTestSeriesTest = typeof testSeriesTests.$inferInsert;
+
+export type UserPurchase = typeof userPurchases.$inferSelect;
+export type InsertUserPurchase = z.infer<typeof insertUserPurchaseSchema>;
 
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;

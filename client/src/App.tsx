@@ -22,6 +22,8 @@ import TestResults from "@/pages/TestResults";
 import Analytics from "@/pages/Analytics";
 import Discussions from "@/pages/Discussions";
 import ThreadDetail from "@/pages/ThreadDetail";
+import Shop from "@/pages/Shop";
+import MyPurchases from "@/pages/MyPurchases";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -37,6 +39,8 @@ function Router() {
       <Route path="/analytics" component={Analytics} />
       <Route path="/discussions" component={Discussions} />
       <Route path="/discussions/:id" component={ThreadDetail} />
+      <Route path="/shop" component={Shop} />
+      <Route path="/my-purchases" component={MyPurchases} />
       <Route path="/questions" component={Questions} />
       <Route path="/questions/new" component={QuestionForm} />
       <Route path="/questions/:id" component={QuestionDetail} />
