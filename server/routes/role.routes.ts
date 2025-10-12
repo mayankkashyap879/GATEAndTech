@@ -3,8 +3,43 @@ import { fromZodError } from 'zod-validation-error';
 import { insertRoleSchema } from '@shared/schema';
 import * as roleStorage from '../storage/role.storage';
 import { requireAuth, requireRole } from '../auth';
+import { defineAbilitiesFor, serializeAbilities } from '../casl/abilities';
+import type { User } from '@shared/schema';
 
 export function roleRoutes(app: Express): void {
+  // ============================================================================
+  // USER ABILITIES ROUTE
+  // ============================================================================
+
+  /**
+   * GET /api/abilities
+   * Get current user's abilities/permissions
+   */
+  app.get('/api/abilities', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      
+      // Load user's permissions from database
+      const permissions = await roleStorage.getUserPermissionsByRole(user.role);
+      const userWithPermissions = { ...user, permissions };
+      
+      // Serialize abilities for frontend
+      const abilities = serializeAbilities(userWithPermissions);
+      
+      res.json({ 
+        abilities,
+        permissions: permissions.map(p => ({
+          action: p.action,
+          subject: p.subject,
+          description: p.description
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching abilities:', error);
+      res.status(500).json({ message: 'Failed to fetch abilities' });
+    }
+  });
+
   // ============================================================================
   // ROLE MANAGEMENT ROUTES
   // ============================================================================
