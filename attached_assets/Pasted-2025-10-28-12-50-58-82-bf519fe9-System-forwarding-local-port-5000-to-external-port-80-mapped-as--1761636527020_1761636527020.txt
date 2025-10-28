@@ -1,0 +1,164 @@
+2025-10-28 12:50:58.82
+bf519fe9
+System
+forwarding local port 5000 to external port 80 (mapped as 1104)
+2025-10-28 12:50:59.78
+bf519fe9
+User
+> rest-express@1.0.0 start
+2025-10-28 12:50:59.78
+bf519fe9
+User
+> NODE_ENV=production node dist/index.js
+2025-10-28 12:51:01.25
+bf519fe9
+User
+⚠️ REDIS_URL not set, running without caching. Set REDIS_URL for production scalability.
+2025-10-28 12:51:01.25
+bf519fe9
+User
+⚠️ Razorpay credentials not found. Payment features disabled. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to enable payments.
+2025-10-28 12:51:01.25
+bf519fe9
+User
+⚠️ Test scoring worker not initialized - Redis not available
+2025-10-28 12:51:01.25
+bf519fe9
+User
+⚠️ Analytics worker not initialized - Redis not available
+2025-10-28 12:51:01.26
+bf519fe9
+User
+Warning: connect.session() MemoryStore is not
+2025-10-28 12:51:01.26
+bf519fe9
+User
+designed for a production environment, as it will leak
+2025-10-28 12:51:01.26
+bf519fe9
+User
+memory, and will not scale past a single process.
+2025-10-28 12:51:01.31
+bf519fe9
+User
+7:21:01 AM [express] serving on port 5000
+2025-10-28 12:53:00.73
+bf519fe9
+User
+7:23:00 AM [express] GET /api/auth/me 401 in 2ms :: {"error":"Not authenticated"}
+2025-10-28 12:53:00.81
+bf519fe9
+User
+7:23:00 AM [express] GET /api/test-series 500 in 58ms :: {"error":"getaddrinfo EAI_AGAIN helium"}
+2025-10-28 12:53:16.50
+bf519fe9
+User
+ValidationError: The 'X-Forwarded-For' header is set but the Express 'trust proxy' setting is false (default). This could indicate a misconfiguration which would prevent express-rate-limit from accurately identifying users. See https://express-rate-limit.github.io/ERR_ERL_UNEXPECTED_X_FORWARDED_FOR/ for more information.
+2025-10-28 12:53:16.50
+bf519fe9
+User
+at Object.xForwardedForHeader (file:///home/runner/workspace/node_modules/express-rate-limit/dist/index.mjs:337:13)
+2025-10-28 12:53:16.50
+bf519fe9
+User
+at wrappedValidations. [as xForwardedForHeader] (file:///home/runner/workspace/node_modules/express-rate-limit/dist/index.mjs:609:22)
+2025-10-28 12:53:16.50
+bf519fe9
+User
+at Object.keyGenerator (file:///home/runner/workspace/node_modules/express-rate-limit/dist/index.mjs:711:20)
+2025-10-28 12:53:16.50
+bf519fe9
+User
+at file:///home/runner/workspace/node_modules/express-rate-limit/dist/index.mjs:772:32
+2025-10-28 12:53:16.50
+bf519fe9
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-28 12:53:16.50
+bf519fe9
+User
+at async file:///home/runner/workspace/node_modules/express-rate-limit/dist/index.mjs:753:5 {
+2025-10-28 12:53:16.50
+bf519fe9
+User
+code: 'ERR_ERL_UNEXPECTED_X_FORWARDED_FOR',
+2025-10-28 12:53:16.50
+bf519fe9
+User
+help: 'https://express-rate-limit.github.io/ERR_ERL_UNEXPECTED_X_FORWARDED_FOR/'
+2025-10-28 12:53:16.50
+bf519fe9
+User
+}
+2025-10-28 12:53:16.50
+bf519fe9
+User
+CRITICAL: Rate limiting requires Redis in production
+2025-10-28 12:53:16.50
+bf519fe9
+User
+Error: Rate limiting service unavailable
+2025-10-28 12:53:16.50
+bf519fe9
+User
+at RedisStore.increment (file:///home/runner/workspace/dist/index.js:1749:13)
+2025-10-28 12:53:16.50
+bf519fe9
+User
+at file:///home/runner/workspace/node_modules/express-rate-limit/dist/index.mjs:776:52
+2025-10-28 12:53:16.50
+bf519fe9
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-28 12:53:16.50
+bf519fe9
+User
+at async file:///home/runner/workspace/node_modules/express-rate-limit/dist/index.mjs:753:5
+2025-10-28 12:53:16.50
+bf519fe9
+User
+7:23:16 AM [express] POST /api/auth/register 500 in 3ms :: {"message":"Rate limiting service unavail…
+2025-10-28 12:53:27.44
+bf519fe9
+User
+at Object.keyGenerator (file:///home/runner/workspace/node_modules/express-rate-limit/dist/index.mjs:711:20)
+2025-10-28 12:53:27.44
+bf519fe9
+User
+at file:///home/runner/workspace/node_modules/express-rate-limit/dist/index.mjs:772:32
+2025-10-28 12:53:27.44
+bf519fe9
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-28 12:53:27.44
+bf519fe9
+User
+at async file:///home/runner/workspace/node_modules/express-rate-limit/dist/index.mjs:753:5 {
+2025-10-28 12:53:27.44
+bf519fe9
+User
+code: 'ERR_ERL_UNEXPECTED_X_FORWARDED_FOR',
+2025-10-28 12:53:27.44
+bf519fe9
+User
+help: 'https://express-rate-limit.github.io/ERR_ERL_UNEXPECTED_X_FORWARDED_FOR/'
+2025-10-28 12:53:27.44
+bf519fe9
+User
+}
+2025-10-28 12:53:27.44
+bf519fe9
+User
+CRITICAL: Rate limiting requires Redis in production
+2025-10-28 12:53:27.45
+bf519fe9
+User
+7:23:27 AM [express] POST /api/auth/register 500 in 1ms :: {"message":"Rate limiting service unavail…
+2025-10-28 12:53:27.45
+bf519fe9
+User
+Error: Rate limiting service unavailable
+2025-10-28 12:53:27.45
+bf519fe9
+User
+at RedisStore.increment (file:///home/runner/workspace/dist/index.js:1749:13)
