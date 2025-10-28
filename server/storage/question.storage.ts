@@ -1,11 +1,14 @@
 import {
   questions,
   topics,
+  subjects,
   questionTopics,
   type Question,
   type InsertQuestion,
   type Topic,
   type InsertTopic,
+  type Subject,
+  type InsertSubject,
 } from "@shared/schema";
 import { db } from "../db";
 import { eq, and, asc } from "drizzle-orm";
@@ -122,5 +125,56 @@ export class QuestionStorage {
       .values(insertTopic)
       .returning();
     return topic;
+  }
+
+  async getTopicsBySubject(subjectId: string): Promise<Topic[]> {
+    return await db
+      .select()
+      .from(topics)
+      .where(eq(topics.subjectId, subjectId))
+      .orderBy(asc(topics.name));
+  }
+
+  async updateTopic(id: string, data: Partial<InsertTopic>): Promise<Topic | undefined> {
+    const [topic] = await db
+      .update(topics)
+      .set(data)
+      .where(eq(topics.id, id))
+      .returning();
+    return topic || undefined;
+  }
+
+  async deleteTopic(id: string): Promise<void> {
+    await db.delete(topics).where(eq(topics.id, id));
+  }
+
+  async getSubject(id: string): Promise<Subject | undefined> {
+    const [subject] = await db.select().from(subjects).where(eq(subjects.id, id));
+    return subject || undefined;
+  }
+
+  async getSubjects(): Promise<Subject[]> {
+    return await db.select().from(subjects).orderBy(asc(subjects.displayOrder));
+  }
+
+  async createSubject(insertSubject: InsertSubject): Promise<Subject> {
+    const [subject] = await db
+      .insert(subjects)
+      .values(insertSubject)
+      .returning();
+    return subject;
+  }
+
+  async updateSubject(id: string, data: Partial<InsertSubject>): Promise<Subject | undefined> {
+    const [subject] = await db
+      .update(subjects)
+      .set(data)
+      .where(eq(subjects.id, id))
+      .returning();
+    return subject || undefined;
+  }
+
+  async deleteSubject(id: string): Promise<void> {
+    await db.delete(subjects).where(eq(subjects.id, id));
   }
 }

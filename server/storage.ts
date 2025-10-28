@@ -4,6 +4,7 @@ import {
   sessions,
   verificationTokens,
   questions,
+  subjects,
   topics,
   questionTopics,
   tests,
@@ -25,6 +26,8 @@ import {
   type InsertVerificationToken,
   type Question,
   type InsertQuestion,
+  type Subject,
+  type InsertSubject,
   type Topic,
   type InsertTopic,
   type Test,
@@ -94,7 +97,17 @@ export interface IStorage {
   // Topic operations
   getTopic(id: string): Promise<Topic | undefined>;
   getTopics(): Promise<Topic[]>;
+  getTopicsBySubject(subjectId: string): Promise<Topic[]>;
   createTopic(topic: InsertTopic): Promise<Topic>;
+  updateTopic(id: string, data: Partial<InsertTopic>): Promise<Topic | undefined>;
+  deleteTopic(id: string): Promise<void>;
+  
+  // Subject operations
+  getSubject(id: string): Promise<Subject | undefined>;
+  getSubjects(): Promise<Subject[]>;
+  createSubject(subject: InsertSubject): Promise<Subject>;
+  updateSubject(id: string, data: Partial<InsertSubject>): Promise<Subject | undefined>;
+  deleteSubject(id: string): Promise<void>;
   
   // Test operations
   getTest(id: string): Promise<Test | undefined>;
@@ -491,6 +504,61 @@ export class DatabaseStorage implements IStorage {
       .values(insertTopic)
       .returning();
     return topic;
+  }
+
+  async getTopicsBySubject(subjectId: string): Promise<Topic[]> {
+    return await db
+      .select()
+      .from(topics)
+      .where(eq(topics.subjectId, subjectId))
+      .orderBy(asc(topics.name));
+  }
+
+  async updateTopic(id: string, data: Partial<InsertTopic>): Promise<Topic | undefined> {
+    const [topic] = await db
+      .update(topics)
+      .set(data)
+      .where(eq(topics.id, id))
+      .returning();
+    return topic || undefined;
+  }
+
+  async deleteTopic(id: string): Promise<void> {
+    await db.delete(topics).where(eq(topics.id, id));
+  }
+
+  // ============================================================================
+  // SUBJECT OPERATIONS
+  // ============================================================================
+
+  async getSubject(id: string): Promise<Subject | undefined> {
+    const [subject] = await db.select().from(subjects).where(eq(subjects.id, id));
+    return subject || undefined;
+  }
+
+  async getSubjects(): Promise<Subject[]> {
+    return await db.select().from(subjects).orderBy(asc(subjects.displayOrder));
+  }
+
+  async createSubject(insertSubject: InsertSubject): Promise<Subject> {
+    const [subject] = await db
+      .insert(subjects)
+      .values(insertSubject)
+      .returning();
+    return subject;
+  }
+
+  async updateSubject(id: string, data: Partial<InsertSubject>): Promise<Subject | undefined> {
+    const [subject] = await db
+      .update(subjects)
+      .set(data)
+      .where(eq(subjects.id, id))
+      .returning();
+    return subject || undefined;
+  }
+
+  async deleteSubject(id: string): Promise<void> {
+    await db.delete(subjects).where(eq(subjects.id, id));
   }
 
   // ============================================================================

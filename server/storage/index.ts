@@ -11,6 +11,8 @@ import type {
   VerificationToken,
   Question,
   InsertQuestion,
+  Subject,
+  InsertSubject,
   Topic,
   InsertTopic,
   Test,
@@ -68,7 +70,15 @@ export interface IStorage {
   getQuestionTopics(questionId: string): Promise<Topic[]>;
   getTopic(id: string): Promise<Topic | undefined>;
   getTopics(): Promise<Topic[]>;
+  getTopicsBySubject(subjectId: string): Promise<Topic[]>;
   createTopic(topic: InsertTopic): Promise<Topic>;
+  updateTopic(id: string, data: Partial<InsertTopic>): Promise<Topic | undefined>;
+  deleteTopic(id: string): Promise<void>;
+  getSubject(id: string): Promise<Subject | undefined>;
+  getSubjects(): Promise<Subject[]>;
+  createSubject(subject: InsertSubject): Promise<Subject>;
+  updateSubject(id: string, data: Partial<InsertSubject>): Promise<Subject | undefined>;
+  deleteSubject(id: string): Promise<void>;
   getTest(id: string): Promise<Test | undefined>;
   getTests(filters?: { 
     status?: string; 
@@ -274,6 +284,38 @@ export class Storage implements IStorage {
 
   createTopic(topic: InsertTopic): Promise<Topic> {
     return this.questionStorage.createTopic(topic);
+  }
+
+  getTopicsBySubject(subjectId: string): Promise<Topic[]> {
+    return this.questionStorage.getTopicsBySubject(subjectId);
+  }
+
+  updateTopic(id: string, data: Partial<InsertTopic>): Promise<Topic | undefined> {
+    return this.questionStorage.updateTopic(id, data);
+  }
+
+  deleteTopic(id: string): Promise<void> {
+    return this.questionStorage.deleteTopic(id);
+  }
+
+  getSubject(id: string): Promise<Subject | undefined> {
+    return this.questionStorage.getSubject(id);
+  }
+
+  getSubjects(): Promise<Subject[]> {
+    return this.questionStorage.getSubjects();
+  }
+
+  createSubject(subject: InsertSubject): Promise<Subject> {
+    return this.questionStorage.createSubject(subject);
+  }
+
+  updateSubject(id: string, data: Partial<InsertSubject>): Promise<Subject | undefined> {
+    return this.questionStorage.updateSubject(id, data);
+  }
+
+  deleteSubject(id: string): Promise<void> {
+    return this.questionStorage.deleteSubject(id);
   }
 
   getTest(id: string): Promise<Test | undefined> {
