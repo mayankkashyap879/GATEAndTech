@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Edit, CheckCircle2, XCircle, BookOpen, Info } from "lucide-react";
+import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import type { Question } from "@shared/schema";
 
 export default function QuestionDetail() {
@@ -114,9 +115,9 @@ export default function QuestionDetail() {
                 </Badge>
               )}
             </div>
-            <CardTitle className="text-xl" data-testid="text-question-content">
-              {question.content}
-            </CardTitle>
+            <div className="prose dark:prose-invert max-w-none" data-testid="text-question-content">
+              <MarkdownRenderer content={question.content} />
+            </div>
           </CardHeader>
 
           {question.imageUrl && (
@@ -152,11 +153,11 @@ export default function QuestionDetail() {
                           <XCircle className="h-5 w-5 text-muted-foreground" />
                         )}
                       </div>
-                      <div className="flex-1">
-                        <span className="font-medium text-sm text-muted-foreground mr-2">
+                      <div className="flex-1 prose dark:prose-invert prose-sm max-w-none">
+                        <span className="font-medium text-sm text-muted-foreground mr-2 not-prose">
                           {option.id}.
                         </span>
-                        <span className="text-foreground">{option.text}</span>
+                        <MarkdownRenderer content={option.text} />
                       </div>
                     </div>
                   </div>
@@ -188,9 +189,9 @@ export default function QuestionDetail() {
                   <Info className="h-4 w-4" />
                   Explanation:
                 </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-explanation">
-                  {question.explanation}
-                </p>
+                <div className="prose dark:prose-invert prose-sm max-w-none" data-testid="text-explanation">
+                  <MarkdownRenderer content={question.explanation} />
+                </div>
               </div>
             </CardContent>
           )}

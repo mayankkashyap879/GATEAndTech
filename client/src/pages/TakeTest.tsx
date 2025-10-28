@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, Calculator, BookOpen } from "lucide-react";
+import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import type { Test, Question, TestAttempt } from "@shared/schema";
 import QuestionPalette from "@/components/test/QuestionPalette";
 import TestInstructions from "@/components/test/TestInstructions";
@@ -418,7 +419,7 @@ export default function TakeTest() {
 
             <div className="p-6">
               <div className="prose dark:prose-invert max-w-none mb-6">
-                <p className="text-base">{currentQuestion.content}</p>
+                <MarkdownRenderer content={currentQuestion.content} />
                 {currentQuestion.imageUrl && (
                   <img src={currentQuestion.imageUrl} alt="Question" className="mt-4 rounded-lg max-w-md" />
                 )}
@@ -434,7 +435,9 @@ export default function TakeTest() {
                     {(currentQuestion.options as any)?.map((option: any) => (
                       <div key={option.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted">
                         <RadioGroupItem value={option.id} id={option.id} data-testid={`radio-option-${option.id}`} />
-                        <Label htmlFor={option.id} className="flex-1 cursor-pointer">{option.text}</Label>
+                        <Label htmlFor={option.id} className="flex-1 cursor-pointer prose dark:prose-invert prose-sm max-w-none">
+                          <MarkdownRenderer content={option.text} />
+                        </Label>
                       </div>
                     ))}
                   </RadioGroup>
@@ -460,7 +463,9 @@ export default function TakeTest() {
                             }}
                             data-testid={`checkbox-option-${option.id}`}
                           />
-                          <Label htmlFor={option.id} className="flex-1 cursor-pointer">{option.text}</Label>
+                          <Label htmlFor={option.id} className="flex-1 cursor-pointer prose dark:prose-invert prose-sm max-w-none">
+                            <MarkdownRenderer content={option.text} />
+                          </Label>
                         </div>
                       );
                     })}
