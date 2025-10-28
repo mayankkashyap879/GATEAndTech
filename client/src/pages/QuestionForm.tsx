@@ -104,6 +104,13 @@ export default function QuestionForm() {
   useEffect(() => {
     if (question) {
       const questionWithTopics = question as any;
+      const firstTopic = questionWithTopics.topics?.[0];
+      
+      // Set the subject ID so topics can be loaded for editing
+      if (firstTopic?.subjectId) {
+        setSelectedSubjectId(firstTopic.subjectId);
+      }
+      
       form.reset({
         content: question.content,
         type: question.type,
@@ -115,7 +122,7 @@ export default function QuestionForm() {
         isPublished: question.isPublished,
         options: question.options as any || [],
         correctAnswer: question.correctAnswer || "",
-        topicId: questionWithTopics.topics?.[0]?.id || "",
+        topicId: firstTopic?.id || "",
       });
     }
   }, [question, form]);
