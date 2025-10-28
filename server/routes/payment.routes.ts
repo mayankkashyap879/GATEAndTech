@@ -7,10 +7,18 @@ import { verifyPaymentSchema } from "@shared/schema";
 import { z } from "zod";
 import { apiLimiter } from "../middleware/rate-limit.js";
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || "",
-  key_secret: process.env.RAZORPAY_KEY_SECRET || "",
-});
+const isPaymentEnabled = Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
+
+let razorpay: Razorpay | null = null;
+if (isPaymentEnabled) {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID!,
+    key_secret: process.env.RAZORPAY_KEY_SECRET!,
+  });
+  console.log("✓ Razorpay payment integration enabled");
+} else {
+  console.log("⚠️ Razorpay credentials not found. Payment features disabled. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to enable payments.");
+}
 
 export function paymentRoutes(app: Express) {
   
@@ -20,6 +28,9 @@ export function paymentRoutes(app: Express) {
   
   app.get("/api/payments/key", async (req: Request, res: Response) => {
     try {
+      if (!isPaymentEnabled) {
+        return res.status(503).json({ error: "Payment service not configured" });
+      }
       res.json({ key: process.env.RAZORPAY_KEY_ID || "" });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -69,6 +80,10 @@ export function paymentRoutes(app: Express) {
   
   app.post("/api/payments/create-order", requireAuth, apiLimiter, async (req: Request, res: Response) => {
     try {
+      if (!isPaymentEnabled || !razorpay) {
+        return res.status(503).json({ error: "Payment service not configured" });
+      }
+      
       const { testSeriesId } = req.body;
       
       if (!testSeriesId) {
@@ -84,7 +99,10 @@ export function paymentRoutes(app: Express) {
         return res.status(400).json({ error: "This test series is not available" });
       }
 
-      if (testSeriesData.price === 0) {
+      // Convert price from string to number (paise)
+      const priceInPaise = Math.round(parseFloat(testSeriesData.price) * 100);
+      
+      if (priceInPaise === 0) {
         return res.status(400).json({ error: "Cannot create order for free test series" });
       }
 
@@ -101,7 +119,7 @@ export function paymentRoutes(app: Express) {
 
       // Create Razorpay order
       const orderOptions = {
-        amount: testSeriesData.price, // amount in paise
+        amount: priceInPaise, // amount in paise
         currency: "INR",
         receipt: `receipt_${Date.now()}`,
         notes: {
@@ -117,7 +135,7 @@ export function paymentRoutes(app: Express) {
       const transaction = await storage.createTransaction({
         userId: user.id,
         testSeriesId: testSeriesData.id,
-        amount: testSeriesData.price,
+        amount: priceInPaise,
         currency: "INR",
         razorpayOrderId: order.id,
         status: "pending",
@@ -142,6 +160,10 @@ export function paymentRoutes(app: Express) {
   
   app.post("/api/payments/verify", requireAuth, apiLimiter, async (req: Request, res: Response) => {
     try {
+      if (!isPaymentEnabled || !razorpay) {
+        return res.status(503).json({ error: "Payment service not configured" });
+      }
+      
       const validatedData = verifyPaymentSchema.parse(req.body);
       const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = validatedData;
 
@@ -178,7 +200,10 @@ export function paymentRoutes(app: Express) {
       // Get the Razorpay order to extract test series details from notes
       const order = await razorpay.orders.fetch(razorpay_order_id);
       const testSeriesIdRaw = order.notes?.testSeriesId;
-      const validityDays = parseInt(order.notes?.validityDays || "90");
+      const validityDaysRaw = order.notes?.validityDays;
+      const validityDays = typeof validityDaysRaw === 'number' 
+        ? validityDaysRaw 
+        : parseInt(String(validityDaysRaw || "90"));
 
       if (!testSeriesIdRaw) {
         return res.status(400).json({ error: "Test series information not found" });
