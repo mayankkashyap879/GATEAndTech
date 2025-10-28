@@ -17,7 +17,9 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Plus, Trash2, Save } from "lucide-react";
 import { RichTextEditor } from "@/components/RichTextEditor";
-import type { Question, Topic } from "@shared/schema";
+import type { Question, Topic, Subject } from "@shared/schema";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 const questionSchema = z.object({
   content: z.string().min(10, "Question content must be at least 10 characters"),
@@ -47,9 +49,25 @@ export default function QuestionForm() {
   const questionId = params?.id;
   const isEditing = !!questionId;
 
-  // Fetch topics
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
+  const [isNewTopicDialogOpen, setIsNewTopicDialogOpen] = useState(false);
+  const [newTopicName, setNewTopicName] = useState("");
+  const [newTopicDescription, setNewTopicDescription] = useState("");
+
+  // Fetch subjects
+  const { data: subjects = [] } = useQuery<Subject[]>({
+    queryKey: ["/api/subjects"],
+  });
+
+  // Fetch topics based on selected subject
   const { data: topics = [] } = useQuery<Topic[]>({
-    queryKey: ["/api/topics"],
+    queryKey: ["/api/topics", selectedSubjectId],
+    enabled: !!selectedSubjectId,
+    queryFn: async () => {
+      const response = await fetch(`/api/topics?subjectId=${selectedSubjectId}`);
+      if (!response.ok) throw new Error("Failed to fetch topics");
+      return response.json();
+    },
   });
 
   // Fetch existing question if editing
@@ -146,6 +164,37 @@ export default function QuestionForm() {
       });
     },
   });
+
+  const createTopicMutation = useMutation({
+    mutationFn: async (data: { name: string; slug: string; subjectId: string; description?: string }) => {
+      return apiRequest("POST", "/api/topics", data);
+    },
+    onSuccess: (newTopic: Topic) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/topics"] });
+      setIsNewTopicDialogOpen(false);
+      setNewTopicName("");
+      setNewTopicDescription("");
+      form.setValue("topicId", newTopic.id);
+      toast({ title: "Topic created successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to create topic", variant: "destructive" });
+    },
+  });
+
+  const handleCreateTopic = () => {
+    if (!selectedSubjectId || !newTopicName.trim()) {
+      toast({ title: "Please provide topic name", variant: "destructive" });
+      return;
+    }
+    const slug = newTopicName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    createTopicMutation.mutate({
+      name: newTopicName.trim(),
+      slug,
+      subjectId: selectedSubjectId,
+      description: newTopicDescription.trim() || undefined,
+    });
+  };
 
   const onSubmit = (data: QuestionFormData) => {
     if (isEditing) {
@@ -327,16 +376,63 @@ export default function QuestionForm() {
                     )}
                   />
 
+                  <FormItem>
+                    <FormLabel>Subject *</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        setSelectedSubjectId(value);
+                        form.setValue("topicId", ""); // Reset topic when subject changes
+                      }}
+                      value={selectedSubjectId}
+                    >
+                      <SelectTrigger data-testid="select-subject">
+                        <SelectValue placeholder="Select subject" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {subjects.map((subject) => (
+                          <SelectItem key={subject.id} value={subject.id}>
+                            {subject.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+
                   <FormField
                     control={form.control}
                     name="topicId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Topic *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <div className="flex items-center justify-between">
+                          <FormLabel>Topic *</FormLabel>
+                          {selectedSubjectId && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsNewTopicDialogOpen(true)}
+                              className="gap-1"
+                              data-testid="button-add-new-topic"
+                            >
+                              <Plus className="h-3 w-3" />
+                              New Topic
+                            </Button>
+                          )}
+                        </div>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          disabled={!selectedSubjectId}
+                        >
                           <FormControl>
                             <SelectTrigger data-testid="select-topic">
-                              <SelectValue placeholder="Select topic" />
+                              <SelectValue
+                                placeholder={
+                                  selectedSubjectId
+                                    ? "Select topic"
+                                    : "Select a subject first"
+                                }
+                              />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -532,6 +628,57 @@ export default function QuestionForm() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={isNewTopicDialogOpen} onOpenChange={setIsNewTopicDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Topic</DialogTitle>
+            <DialogDescription>
+              Add a new topic to {subjects.find(s => s.id === selectedSubjectId)?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="new-topic-name">Topic Name *</Label>
+              <Input
+                id="new-topic-name"
+                value={newTopicName}
+                onChange={(e) => setNewTopicName(e.target.value)}
+                placeholder="e.g., Arrays and Strings"
+                data-testid="input-new-topic-name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-topic-description">Description</Label>
+              <Textarea
+                id="new-topic-description"
+                value={newTopicDescription}
+                onChange={(e) => setNewTopicDescription(e.target.value)}
+                placeholder="Brief description of the topic"
+                rows={3}
+                data-testid="input-new-topic-description"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsNewTopicDialogOpen(false)}
+              data-testid="button-cancel-new-topic"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateTopic}
+              disabled={createTopicMutation.isPending || !newTopicName.trim()}
+              data-testid="button-create-new-topic"
+            >
+              {createTopicMutation.isPending ? "Creating..." : "Create Topic"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
