@@ -75,15 +75,27 @@ export const verificationTokens = pgTable("verification_tokens", {
 // QUESTION BANK
 // ============================================================================
 
+export const subjects = pgTable("subjects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  displayOrder: integer("display_order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  displayOrderIdx: index("subjects_display_order_idx").on(table.displayOrder),
+}));
+
 export const topics = pgTable("topics", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  slug: text("slug").notNull().unique(),
-  subject: text("subject").notNull(), // e.g., "Computer Science", "Electronics", "Mathematics"
+  slug: text("slug").notNull(),
+  subjectId: varchar("subject_id").notNull().references(() => subjects.id, { onDelete: "cascade" }),
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
-  subjectIdx: index("topics_subject_idx").on(table.subject),
+  subjectIdx: index("topics_subject_idx").on(table.subjectId),
+  slugSubjectUniq: unique().on(table.slug, table.subjectId),
 }));
 
 export const questions = pgTable("questions", {
@@ -542,6 +554,25 @@ export const updateQuestionSchema = z.object({
 
 export const selectQuestionSchema = createSelectSchema(questions);
 
+// Subject schemas
+export const insertSubjectSchema = createInsertSchema(subjects, {
+  name: z.string().min(2).max(100),
+  slug: z.string().min(2).max(100),
+  description: z.string().optional(),
+  displayOrder: z.number().int().nonnegative().optional(),
+}).omit({ id: true, createdAt: true });
+
+export const selectSubjectSchema = createSelectSchema(subjects);
+
+// Topic schemas  
+export const insertTopicSchema = createInsertSchema(topics, {
+  name: z.string().min(2).max(100),
+  slug: z.string().min(2).max(100),
+  description: z.string().optional(),
+}).omit({ id: true, createdAt: true });
+
+export const selectTopicSchema = createSelectSchema(topics);
+
 // Test schemas
 export const insertTestSchema = createInsertSchema(tests, {
   title: z.string().min(3).max(200),
@@ -687,8 +718,11 @@ export type InsertVerificationToken = typeof verificationTokens.$inferInsert;
 export type Question = typeof questions.$inferSelect;
 export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
 
+export type Subject = typeof subjects.$inferSelect;
+export type InsertSubject = z.infer<typeof insertSubjectSchema>;
+
 export type Topic = typeof topics.$inferSelect;
-export type InsertTopic = typeof topics.$inferInsert;
+export type InsertTopic = z.infer<typeof insertTopicSchema>;
 
 export type Test = typeof tests.$inferSelect;
 export type InsertTest = z.infer<typeof insertTestSchema>;
