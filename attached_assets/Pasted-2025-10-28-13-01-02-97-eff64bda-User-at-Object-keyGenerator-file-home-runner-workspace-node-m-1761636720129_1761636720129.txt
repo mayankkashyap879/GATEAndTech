@@ -1,0 +1,124 @@
+2025-10-28 13:01:02.97
+eff64bda
+User
+at Object.keyGenerator (file:///home/runner/workspace/node_modules/express-rate-limit/dist/index.mjs:710:20)
+2025-10-28 13:01:02.97
+eff64bda
+User
+at file:///home/runner/workspace/node_modules/express-rate-limit/dist/index.mjs:772:32
+2025-10-28 13:01:02.97
+eff64bda
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-28 13:01:02.97
+eff64bda
+User
+at async file:///home/runner/workspace/node_modules/express-rate-limit/dist/index.mjs:753:5 {
+2025-10-28 13:01:02.97
+eff64bda
+User
+code: 'ERR_ERL_PERMISSIVE_TRUST_PROXY',
+2025-10-28 13:01:02.97
+eff64bda
+User
+help: 'https://express-rate-limit.github.io/ERR_ERL_PERMISSIVE_TRUST_PROXY/'
+2025-10-28 13:01:02.97
+eff64bda
+User
+}
+2025-10-28 13:01:03.01
+eff64bda
+User
+Registration error: ErrorEvent {
+2025-10-28 13:01:03.01
+eff64bda
+User
+[Symbol(kTarget)]: WebSocket {
+2025-10-28 13:01:03.01
+eff64bda
+User
+_events: [Object: null prototype] {
+2025-10-28 13:01:03.01
+eff64bda
+User
+error: [Function],
+2025-10-28 13:01:03.01
+eff64bda
+User
+message: [Function],
+2025-10-28 13:01:03.01
+eff64bda
+User
+close: [Function],
+2025-10-28 13:01:03.01
+eff64bda
+User
+open: [Function]
+2025-10-28 13:01:03.01
+eff64bda
+User
+},
+2025-10-28 13:01:03.01
+eff64bda
+User
+_eventsCount: 4,
+2025-10-28 13:01:03.01
+eff64bda
+User
+_maxListeners: undefined,
+2025-10-28 13:01:03.01
+eff64bda
+User
+_binaryType: 'arraybuffer',
+2025-10-28 13:01:03.01
+eff64bda
+User
+_closeCode: 1006,
+2025-10-28 13:01:03.01
+eff64bda
+User
+_closeFrameReceived: false,
+2025-10-28 13:01:03.01
+eff64bda
+User
+_closeFrameSent: false,
+2025-10-28 13:01:03.01
+eff64bda
+User
+_closeMessage: ,
+2025-10-28 13:01:03.01
+eff64bda
+User
+_closeTimer: null,
+2025-10-28 13:01:03.01
+eff64bda
+User
+_errorEmitted: true,
+2025-10-28 13:01:03.01
+eff64bda
+User
+_extensions: {},
+2025-10-28 13:01:03.01
+eff64bda
+User
+_paused: false,
+2025-10-28 13:01:03.01
+eff64bda
+User
+_protocol: '',
+2025-10-28 13:01:03.01
+eff64bda
+User
+_readyState: 3,
+2025-10-28 13:01:03.01
+eff64bda
+User
+_receiver: null,
+2025-10-28 13:01:03.01
+eff64bda
+User
+_sender: null,
+2025-10-28 13:01:03.01
+eff64bda
+User
+_socket: null,
