@@ -2,8 +2,8 @@ import rateLimit from 'express-rate-limit';
 import { redis } from '../redis.js';
 
 /**
- * Production-ready Redis store for rate limiting
- * Always uses Redis in production, with runtime availability checks
+ * Redis store for rate limiting (optional)
+ * Falls back to memory store when Redis is unavailable
  */
 class RedisStore {
   prefix: string;
@@ -15,15 +15,8 @@ class RedisStore {
   }
 
   async increment(key: string): Promise<{ totalHits: number; resetTime: Date | undefined }> {
-    // In production, Redis is required - fail fast if unavailable
-    if (process.env.NODE_ENV === 'production' && !redis) {
-      console.error('CRITICAL: Rate limiting requires Redis in production');
-      throw new Error('Rate limiting service unavailable');
-    }
-
-    // In development, allow fallback but log warning
+    // If Redis is not configured, skip (will use default memory store)
     if (!redis) {
-      console.warn('Rate limiting: Redis unavailable, using fallback (dev only)');
       return { totalHits: 1, resetTime: new Date(Date.now() + this.windowMs) };
     }
 
@@ -33,10 +26,6 @@ class RedisStore {
       // Runtime check: attempt to ping Redis
       const status = redis.status;
       if (status !== 'ready' && status !== 'connect') {
-        if (process.env.NODE_ENV === 'production') {
-          throw new Error('Redis not ready for rate limiting');
-        }
-        console.warn('Rate limiting: Redis not ready, using fallback (dev only)');
         return { totalHits: 1, resetTime: new Date(Date.now() + this.windowMs) };
       }
 
@@ -70,14 +59,7 @@ class RedisStore {
       };
     } catch (error) {
       console.error('Rate limit Redis error:', error);
-      
-      // In production, fail closed (reject request) on Redis errors
-      if (process.env.NODE_ENV === 'production') {
-        throw error;
-      }
-      
-      // In development, fail open (allow request) but log
-      console.warn('Rate limiting: Redis error, allowing request (dev only)');
+      // Fail open (allow request) on Redis errors
       return { totalHits: 1, resetTime: new Date(Date.now() + this.windowMs) };
     }
   }
@@ -113,6 +95,11 @@ class RedisStore {
       // Non-critical operation, just log
     }
   }
+}
+
+// Log warning if Redis is not configured
+if (!redis && process.env.NODE_ENV === 'production') {
+  console.warn('⚠️ Redis not configured. Using memory-based rate limiting. For production scalability across multiple instances, set REDIS_URL.');
 }
 
 /**

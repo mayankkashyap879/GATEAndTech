@@ -8,6 +8,11 @@ import "./workers/test-scoring.worker.js";
 import "./workers/analytics.worker.js";
 
 const app = express();
+
+// Trust proxy - Required for rate limiting to work correctly behind Replit's reverse proxy
+// This allows Express to read the X-Forwarded-For header to get the real client IP
+app.set('trust proxy', true);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
