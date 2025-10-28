@@ -11,5 +11,14 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Log database connection info (without exposing credentials)
+const dbUrl = new URL(process.env.DATABASE_URL);
+console.log(`📦 Connecting to database at ${dbUrl.hostname}...`);
+
+export const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  // Add connection timeout and retry settings
+  connectionTimeoutMillis: 10000,
+});
+
 export const db = drizzle({ client: pool, schema });
