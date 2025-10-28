@@ -16,6 +16,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Plus, Trash2, Save } from "lucide-react";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import type { Question, Topic } from "@shared/schema";
 
 const questionSchema = z.object({
@@ -220,13 +221,13 @@ export default function QuestionForm() {
                   name="content"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Question Content *</FormLabel>
                       <FormControl>
-                        <Textarea
-                          {...field}
-                          placeholder="Enter the question..."
-                          className="min-h-24"
-                          data-testid="input-question-content"
+                        <RichTextEditor
+                          value={field.value}
+                          onChange={field.onChange}
+                          label="Question Content *"
+                          placeholder="Write your question here... You can use Markdown, LaTeX equations ($...$), and code blocks."
+                          minHeight="250px"
                         />
                       </FormControl>
                       <FormMessage />
@@ -394,10 +395,11 @@ export default function QuestionForm() {
                               render={({ field }) => (
                                 <FormItem>
                                   <FormControl>
-                                    <Input
+                                    <Textarea
                                       {...field}
-                                      placeholder={`Option ${option.id}`}
+                                      placeholder={`Option ${option.id} (supports LaTeX: $x^2$)`}
                                       data-testid={`input-option-${index}`}
+                                      className="min-h-20 font-mono text-sm"
                                     />
                                   </FormControl>
                                   <FormMessage />
@@ -454,13 +456,13 @@ export default function QuestionForm() {
                   name="explanation"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Explanation</FormLabel>
                       <FormControl>
-                        <Textarea
-                          {...field}
-                          placeholder="Explain the correct answer..."
-                          className="min-h-24"
-                          data-testid="input-explanation"
+                        <RichTextEditor
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          label="Explanation"
+                          placeholder="Explain the correct answer with detailed solution steps..."
+                          minHeight="200px"
                         />
                       </FormControl>
                       <FormMessage />
