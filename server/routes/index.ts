@@ -10,12 +10,15 @@ import { analyticsRoutes } from "./analytics.routes";
 import { paymentRoutes } from "./payment.routes";
 import { roleRoutes } from "./role.routes";
 import { healthRoutes } from "./health.routes";
+import { gamificationRoutes } from "./gamification.routes";
+import { couponRoutes } from "./coupon.routes";
+import { commentRoutes } from "./comment.routes";
+import { testSectionRoutes } from "./testsection.routes";
+import { bulkImportRoutes } from "./bulkimport.routes";
 
 export function registerRoutes(app: Express): Server {
-  // Register health check routes first (no auth required)
   healthRoutes(app);
   
-  // Register all route modules
   authRoutes(app);
   userRoutes(app);
   topicRoutes(app);
@@ -25,8 +28,12 @@ export function registerRoutes(app: Express): Server {
   analyticsRoutes(app);
   paymentRoutes(app);
   roleRoutes(app);
+  gamificationRoutes(app);
+  couponRoutes(app);
+  commentRoutes(app);
+  testSectionRoutes(app);
+  bulkImportRoutes(app);
 
-  // Create and return HTTP server (maintained for compatibility with server/index.ts)
   const httpServer = createServer(app);
   return httpServer;
 }

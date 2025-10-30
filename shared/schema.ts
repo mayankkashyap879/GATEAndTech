@@ -111,6 +111,8 @@ export const questions = pgTable("questions", {
   imageUrl: text("image_url"),
   createdBy: varchar("created_by").notNull().references(() => users.id),
   isPublished: boolean("is_published").default(false).notNull(),
+  versionNumber: integer("version_number").default(1).notNull(),
+  parentVersionId: varchar("parent_version_id").references((): any => questions.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
@@ -118,6 +120,7 @@ export const questions = pgTable("questions", {
   difficultyIdx: index("questions_difficulty_idx").on(table.difficulty),
   createdByIdx: index("questions_created_by_idx").on(table.createdBy),
   createdAtIdx: index("questions_created_at_idx").on(table.createdAt),
+  parentVersionIdx: index("questions_parent_version_idx").on(table.parentVersionId),
   // Composite index for: WHERE isPublished = ? ORDER BY createdAt DESC
   publishedCreatedIdx: index("questions_published_created_idx").on(table.isPublished, table.createdAt.desc()),
 }));
@@ -702,6 +705,194 @@ export const insertPermissionSchema = createInsertSchema(permissions, {
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
 
 // ============================================================================
+// ============================================================================
+
+export const userPoints = pgTable("user_points", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  points: integer("points").default(0).notNull(),
+  streak: integer("streak").default(0).notNull(),
+  lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  pointsIdx: index("user_points_points_idx").on(table.points.desc()),
+}));
+
+export const badges = pgTable("badges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  slug: varchar("slug", { length: 50 }).notNull().unique(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  icon: text("icon"), // Icon URL or emoji
+  pointsRequired: integer("points_required").default(0).notNull(),
+  category: varchar("category", { length: 50 }), // e.g., 'contributor', 'streak', 'achievement'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const userBadges = pgTable("user_badges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  badgeId: varchar("badge_id").notNull().references(() => badges.id, { onDelete: "cascade" }),
+  awardedAt: timestamp("awarded_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("user_badges_user_idx").on(table.userId),
+  uniq: unique().on(table.userId, table.badgeId),
+}));
+
+// ============================================================================
+// ============================================================================
+
+export const discountTypeEnum = pgEnum("discount_type", ["percentage", "fixed"]);
+
+export const coupons = pgTable("coupons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  discountType: discountTypeEnum("discount_type").notNull(),
+  discountValue: numeric("discount_value", { precision: 10, scale: 2 }).notNull(),
+  expiryDate: timestamp("expiry_date"),
+  usageLimit: integer("usage_limit"), // null = unlimited
+  usedCount: integer("used_count").default(0).notNull(),
+  applicableTestSeriesId: varchar("applicable_test_series_id").references(() => testSeries.id),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  codeIdx: index("coupons_code_idx").on(table.code),
+  activeIdx: index("coupons_active_idx").on(table.isActive),
+}));
+
+// ============================================================================
+// ============================================================================
+
+export const invoices = pgTable("invoices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  purchaseId: varchar("purchase_id").notNull().references(() => userPurchases.id, { onDelete: "cascade" }).unique(),
+  invoiceNumber: varchar("invoice_number", { length: 50 }).notNull().unique(),
+  fileUrl: text("file_url"),
+  gstNumber: varchar("gst_number", { length: 50 }),
+  subtotal: numeric("subtotal", { precision: 10, scale: 2 }).notNull(),
+  gstAmount: numeric("gst_amount", { precision: 10, scale: 2 }).notNull(),
+  totalAmount: numeric("total_amount", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  invoiceNumberIdx: index("invoices_invoice_number_idx").on(table.invoiceNumber),
+  purchaseIdx: index("invoices_purchase_idx").on(table.purchaseId),
+}));
+
+// ============================================================================
+// ============================================================================
+
+export const importStatusEnum = pgEnum("import_status", ["pending", "processing", "completed", "failed"]);
+
+export const bulkImports = pgTable("bulk_imports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  fileName: text("file_name").notNull(),
+  fileType: varchar("file_type", { length: 20 }).notNull(), // 'csv', 'qti'
+  status: importStatusEnum("status").default("pending").notNull(),
+  totalRows: integer("total_rows").default(0).notNull(),
+  processedRows: integer("processed_rows").default(0).notNull(),
+  successCount: integer("success_count").default(0).notNull(),
+  errorCount: integer("error_count").default(0).notNull(),
+  errors: jsonb("errors"), // Array of error objects with row numbers
+  jobId: text("job_id"), // BullMQ job ID
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+}, (table) => ({
+  userIdx: index("bulk_imports_user_idx").on(table.userId),
+  statusIdx: index("bulk_imports_status_idx").on(table.status),
+}));
+
+// ============================================================================
+// ============================================================================
+
+export const commentStatusEnum = pgEnum("comment_status", ["active", "flagged", "pending", "deleted"]);
+
+export const comments = pgTable("comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  questionId: varchar("question_id").notNull().references(() => questions.id, { onDelete: "cascade" }),
+  authorId: varchar("author_id").notNull().references(() => users.id),
+  parentCommentId: varchar("parent_comment_id").references((): any => comments.id),
+  body: text("body").notNull(),
+  status: commentStatusEnum("status").default("active").notNull(),
+  spamScore: numeric("spam_score", { precision: 5, scale: 2 }).default("0").notNull(),
+  upvotes: integer("upvotes").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  questionIdx: index("comments_question_idx").on(table.questionId),
+  authorIdx: index("comments_author_idx").on(table.authorId),
+  parentIdx: index("comments_parent_idx").on(table.parentCommentId),
+  statusIdx: index("comments_status_idx").on(table.status),
+}));
+
+export const commentVotes = pgTable("comment_votes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  commentId: varchar("comment_id").notNull().references(() => comments.id, { onDelete: "cascade" }),
+  voterId: varchar("voter_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  value: integer("value").notNull(), // 1 for upvote
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  commentIdx: index("comment_votes_comment_idx").on(table.commentId),
+  uniq: unique().on(table.commentId, table.voterId),
+}));
+
+export const flags = pgTable("flags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  commentId: varchar("comment_id").notNull().references(() => comments.id, { onDelete: "cascade" }),
+  flaggerId: varchar("flagger_id").notNull().references(() => users.id),
+  reason: text("reason").notNull(),
+  status: varchar("status", { length: 20 }).default("pending").notNull(), // 'pending', 'resolved', 'dismissed'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  commentIdx: index("flags_comment_idx").on(table.commentId),
+  statusIdx: index("flags_status_idx").on(table.status),
+}));
+
+// ============================================================================
+// TEST SECTIONS
+// ============================================================================
+
+export const testSections = pgTable("test_sections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  testId: varchar("test_id").notNull().references(() => tests.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  order: integer("order").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  testIdx: index("test_sections_test_idx").on(table.testId),
+  orderIdx: index("test_sections_order_idx").on(table.testId, table.order),
+}));
+
+export const sectionQuestions = pgTable("section_questions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sectionId: varchar("section_id").notNull().references(() => testSections.id, { onDelete: "cascade" }),
+  questionId: varchar("question_id").notNull().references(() => questions.id, { onDelete: "cascade" }),
+  order: integer("order").notNull(),
+}, (table) => ({
+  sectionIdx: index("section_questions_section_idx").on(table.sectionId),
+  uniq: unique().on(table.sectionId, table.questionId),
+}));
+
+export const insertUserPointsSchema = createInsertSchema(userPoints).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertBadgeSchema = createInsertSchema(badges).omit({ id: true, createdAt: true });
+export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({ id: true, awardedAt: true });
+export const insertCouponSchema = createInsertSchema(coupons, {
+  code: z.string().min(3).max(50),
+  discountValue: z.string().regex(/^\d+(\.\d{1,2})?$/),
+}).omit({ id: true, createdAt: true, usedCount: true });
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });
+export const insertBulkImportSchema = createInsertSchema(bulkImports).omit({ id: true, createdAt: true, completedAt: true });
+export const insertCommentSchema = createInsertSchema(comments, {
+  body: z.string().min(1).max(5000),
+}).omit({ id: true, createdAt: true, updatedAt: true, upvotes: true, spamScore: true });
+export const insertCommentVoteSchema = createInsertSchema(commentVotes).omit({ id: true, createdAt: true });
+export const insertFlagSchema = createInsertSchema(flags).omit({ id: true, createdAt: true });
+export const insertTestSectionSchema = createInsertSchema(testSections).omit({ id: true, createdAt: true });
+export const insertSectionQuestionSchema = createInsertSchema(sectionQuestions).omit({ id: true });
+
+// ============================================================================
 // TYPES
 // ============================================================================
 
@@ -765,3 +956,36 @@ export type InsertRolePermission = typeof rolePermissions.$inferInsert;
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+
+export type UserPoints = typeof userPoints.$inferSelect;
+export type InsertUserPoints = z.infer<typeof insertUserPointsSchema>;
+
+export type Badge = typeof badges.$inferSelect;
+export type InsertBadge = z.infer<typeof insertBadgeSchema>;
+
+export type UserBadge = typeof userBadges.$inferSelect;
+export type InsertUserBadge = z.infer<typeof insertUserBadgeSchema>;
+
+export type Coupon = typeof coupons.$inferSelect;
+export type InsertCoupon = z.infer<typeof insertCouponSchema>;
+
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+
+export type BulkImport = typeof bulkImports.$inferSelect;
+export type InsertBulkImport = z.infer<typeof insertBulkImportSchema>;
+
+export type Comment = typeof comments.$inferSelect;
+export type InsertComment = z.infer<typeof insertCommentSchema>;
+
+export type CommentVote = typeof commentVotes.$inferSelect;
+export type InsertCommentVote = z.infer<typeof insertCommentVoteSchema>;
+
+export type Flag = typeof flags.$inferSelect;
+export type InsertFlag = z.infer<typeof insertFlagSchema>;
+
+export type TestSection = typeof testSections.$inferSelect;
+export type InsertTestSection = z.infer<typeof insertTestSectionSchema>;
+
+export type SectionQuestion = typeof sectionQuestions.$inferSelect;
+export type InsertSectionQuestion = z.infer<typeof insertSectionQuestionSchema>;

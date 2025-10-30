@@ -3,7 +3,7 @@ import type { User, Permission, Role } from '@shared/schema';
 
 // Define the app actions and subjects
 export type Action = 'create' | 'read' | 'update' | 'delete' | 'publish' | 'manage' | 'assign' | 'revoke' | 'export' | 'moderate';
-export type Subject = 'Question' | 'Test' | 'Topic' | 'User' | 'Role' | 'Permission' | 'Analytics' | 'Discussion' | 'TestSeries' | 'Payment' | 'AuditLog' | 'all';
+export type Subject = 'Question' | 'Test' | 'Topic' | 'User' | 'Role' | 'Permission' | 'Analytics' | 'Discussion' | 'TestSeries' | 'Payment' | 'AuditLog' | 'Badge' | 'Coupon' | 'Comment' | 'all';
 
 export type AppAbility = MongoAbility<[Action, Subject]>;
 
