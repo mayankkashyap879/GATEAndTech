@@ -1,13 +1,16 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { passport } from "./auth";
+import { pool } from "./db.js";
 // Import workers for background processing
 import "./workers/test-scoring.worker.js";
 import "./workers/analytics.worker.js";
 
 const app = express();
+const PgStore = connectPgSimple(session);
 
 // Trust proxy - Required for rate limiting to work correctly behind Replit's reverse proxy
 // Use 1 to trust only the first proxy (Replit's reverse proxy) for security
@@ -16,9 +19,14 @@ app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Session configuration
+// Session configuration with PostgreSQL store
 app.use(
   session({
+    store: new PgStore({
+      pool: pool,
+      tableName: 'session',
+      createTableIfMissing: true,
+    }),
     secret: process.env.SESSION_SECRET || "gate-and-tech-secret-change-in-production",
     resave: false,
     saveUninitialized: false,

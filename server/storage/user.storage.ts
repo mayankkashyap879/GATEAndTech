@@ -172,4 +172,52 @@ export class UserStorage {
         )
       );
   }
+
+  async createEmailVerificationToken(userId: string, token: string, expiresAt: Date): Promise<VerificationToken> {
+    const [verificationToken] = await db
+      .insert(verificationTokens)
+      .values({
+        userId,
+        token,
+        type: 'email_verification',
+        expiresAt,
+      })
+      .returning();
+    return verificationToken;
+  }
+
+  async getEmailVerificationToken(token: string): Promise<VerificationToken | undefined> {
+    const [verificationToken] = await db
+      .select()
+      .from(verificationTokens)
+      .where(
+        and(
+          eq(verificationTokens.token, token),
+          eq(verificationTokens.type, 'email_verification')
+        )
+      );
+    return verificationToken || undefined;
+  }
+
+  async deleteEmailVerificationToken(token: string): Promise<void> {
+    await db
+      .delete(verificationTokens)
+      .where(
+        and(
+          eq(verificationTokens.token, token),
+          eq(verificationTokens.type, 'email_verification')
+        )
+      );
+  }
+
+  async deleteUserEmailVerificationTokens(userId: string): Promise<void> {
+    await db
+      .delete(verificationTokens)
+      .where(
+        and(
+          eq(verificationTokens.userId, userId),
+          eq(verificationTokens.type, 'email_verification')
+        )
+      );
+  }
 }

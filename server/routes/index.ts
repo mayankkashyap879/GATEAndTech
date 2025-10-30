@@ -9,8 +9,12 @@ import { discussionRoutes } from "./discussion.routes";
 import { analyticsRoutes } from "./analytics.routes";
 import { paymentRoutes } from "./payment.routes";
 import { roleRoutes } from "./role.routes";
+import { healthRoutes } from "./health.routes";
 
 export function registerRoutes(app: Express): Server {
+  // Register health check routes first (no auth required)
+  healthRoutes(app);
+  
   // Register all route modules
   authRoutes(app);
   userRoutes(app);
