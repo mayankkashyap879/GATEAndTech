@@ -112,7 +112,7 @@ export const authLimiter = rateLimit({
   message: 'Too many authentication attempts, please try again after 15 minutes',
   standardHeaders: true,
   legacyHeaders: false,
-  store: new RedisStore('rl:auth:', 15 * 60 * 1000),
+  store: redis ? new RedisStore('rl:auth:', 15 * 60 * 1000) : undefined,
   // Don't skip in production - always enforce
   skip: (req) => false,
 });
@@ -127,7 +127,7 @@ export const apiLimiter = rateLimit({
   message: 'Too many requests, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
-  store: new RedisStore('rl:api:', 15 * 60 * 1000),
+  store: redis ? new RedisStore('rl:api:', 15 * 60 * 1000) : undefined,
   skip: (req) => false,
 });
 
@@ -141,7 +141,7 @@ export const generalLimiter = rateLimit({
   message: 'Too many requests, please slow down',
   standardHeaders: true,
   legacyHeaders: false,
-  store: new RedisStore('rl:general:', 15 * 60 * 1000),
+  store: redis ? new RedisStore('rl:general:', 15 * 60 * 1000) : undefined,
   skip: (req) => false,
 });
 
@@ -155,6 +155,6 @@ export const testSubmitLimiter = rateLimit({
   message: 'Too many test submissions, please wait before submitting again',
   standardHeaders: true,
   legacyHeaders: false,
-  store: new RedisStore('rl:test:', 15 * 60 * 1000),
+  store: redis ? new RedisStore('rl:test:', 15 * 60 * 1000) : undefined,
   skip: (req) => false,
 });

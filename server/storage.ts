@@ -78,6 +78,12 @@ export interface IStorage {
   deletePasswordResetToken(token: string): Promise<void>;
   deleteUserPasswordResetTokens(userId: string): Promise<void>;
   
+  // Email Verification Token operations
+  createEmailVerificationToken(userId: string, token: string, expiresAt: Date): Promise<VerificationToken>;
+  getEmailVerificationToken(token: string): Promise<VerificationToken | undefined>;
+  deleteEmailVerificationToken(token: string): Promise<void>;
+  deleteUserEmailVerificationTokens(userId: string): Promise<void>;
+  
   // Question operations
   getQuestion(id: string): Promise<Question | undefined>;
   getQuestions(filters?: { 
@@ -379,6 +385,58 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(verificationTokens.userId, userId),
           eq(verificationTokens.type, 'password_reset')
+        )
+      );
+  }
+
+  // ============================================================================
+  // EMAIL VERIFICATION TOKEN OPERATIONS
+  // ============================================================================
+
+  async createEmailVerificationToken(userId: string, token: string, expiresAt: Date): Promise<VerificationToken> {
+    const [verificationToken] = await db
+      .insert(verificationTokens)
+      .values({
+        userId,
+        token,
+        type: 'email_verification',
+        expiresAt,
+      })
+      .returning();
+    return verificationToken;
+  }
+
+  async getEmailVerificationToken(token: string): Promise<VerificationToken | undefined> {
+    const [verificationToken] = await db
+      .select()
+      .from(verificationTokens)
+      .where(
+        and(
+          eq(verificationTokens.token, token),
+          eq(verificationTokens.type, 'email_verification')
+        )
+      );
+    return verificationToken || undefined;
+  }
+
+  async deleteEmailVerificationToken(token: string): Promise<void> {
+    await db
+      .delete(verificationTokens)
+      .where(
+        and(
+          eq(verificationTokens.token, token),
+          eq(verificationTokens.type, 'email_verification')
+        )
+      );
+  }
+
+  async deleteUserEmailVerificationTokens(userId: string): Promise<void> {
+    await db
+      .delete(verificationTokens)
+      .where(
+        and(
+          eq(verificationTokens.userId, userId),
+          eq(verificationTokens.type, 'email_verification')
         )
       );
   }

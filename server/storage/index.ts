@@ -54,6 +54,10 @@ export interface IStorage {
   getPasswordResetToken(token: string): Promise<VerificationToken | undefined>;
   deletePasswordResetToken(token: string): Promise<void>;
   deleteUserPasswordResetTokens(userId: string): Promise<void>;
+  createEmailVerificationToken(userId: string, token: string, expiresAt: Date): Promise<VerificationToken>;
+  getEmailVerificationToken(token: string): Promise<VerificationToken | undefined>;
+  deleteEmailVerificationToken(token: string): Promise<void>;
+  deleteUserEmailVerificationTokens(userId: string): Promise<void>;
   getQuestion(id: string): Promise<Question | undefined>;
   getQuestions(filters?: { 
     topicId?: string; 
@@ -234,6 +238,22 @@ export class Storage implements IStorage {
 
   deleteUserPasswordResetTokens(userId: string): Promise<void> {
     return this.userStorage.deleteUserPasswordResetTokens(userId);
+  }
+
+  createEmailVerificationToken(userId: string, token: string, expiresAt: Date): Promise<VerificationToken> {
+    return this.userStorage.createEmailVerificationToken(userId, token, expiresAt);
+  }
+
+  getEmailVerificationToken(token: string): Promise<VerificationToken | undefined> {
+    return this.userStorage.getEmailVerificationToken(token);
+  }
+
+  deleteEmailVerificationToken(token: string): Promise<void> {
+    return this.userStorage.deleteEmailVerificationToken(token);
+  }
+
+  deleteUserEmailVerificationTokens(userId: string): Promise<void> {
+    return this.userStorage.deleteUserEmailVerificationTokens(userId);
   }
 
   getQuestion(id: string): Promise<Question | undefined> {

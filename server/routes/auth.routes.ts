@@ -8,6 +8,7 @@ import { z } from "zod";
 import speakeasy from "speakeasy";
 import qrcode from "qrcode";
 import { authLimiter } from "../middleware/rate-limit.js";
+import { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../email.js";
 
 // Extend session types to include pending2FA
 declare module 'express-session' {
@@ -48,6 +49,14 @@ export function authRoutes(app: Express): void {
         role: "student", // Server-controlled - always student on registration
         theme: "system", // Server-controlled default
       });
+
+      // Generate email verification token
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+      
+      await storage.createEmailVerificationToken(user.id, verificationToken, expiresAt);
+      await sendVerificationEmail(validatedData.email, verificationToken);
 
       // Remove password hash from response
       const { passwordHash: _, ...userWithoutPassword } = user;
@@ -324,6 +333,84 @@ export function authRoutes(app: Express): void {
   });
 
   // ============================================================================
+  // EMAIL VERIFICATION ROUTES
+  // ============================================================================
+
+  // Verify email with token
+  app.get("/api/auth/verify-email", async (req: Request, res: Response) => {
+    try {
+      const { token } = req.query;
+
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({ error: "Verification token is required" });
+      }
+
+      // Get verification token
+      const verificationToken = await storage.getEmailVerificationToken(token);
+      
+      if (!verificationToken) {
+        return res.status(400).json({ error: "Invalid or expired verification token" });
+      }
+
+      // Check if token is expired
+      if (new Date() > verificationToken.expiresAt) {
+        await storage.deleteEmailVerificationToken(token);
+        return res.status(400).json({ error: "Verification token has expired" });
+      }
+
+      // Get user
+      const user = await storage.getUser(verificationToken.userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Update user's email verification status
+      await storage.updateUser(user.id, { emailVerified: new Date() });
+
+      // Delete the used verification token
+      await storage.deleteEmailVerificationToken(token);
+
+      await sendWelcomeEmail(user.email, user.name);
+
+      res.json({ message: "Email verified successfully" });
+    } catch (error) {
+      console.error("Email verification error:", error);
+      res.status(500).json({ error: "Failed to verify email" });
+    }
+  });
+
+  app.post("/api/auth/resend-verification", authLimiter, requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+
+      if (!user) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Check if email is already verified
+      if (user.emailVerified) {
+        return res.status(400).json({ error: "Email is already verified" });
+      }
+
+      // Delete any existing verification tokens for this user
+      await storage.deleteUserEmailVerificationTokens(user.id);
+
+      // Generate new verification token
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+      
+      await storage.createEmailVerificationToken(user.id, verificationToken, expiresAt);
+      await sendVerificationEmail(user.email, verificationToken);
+
+      res.json({ message: "Verification email sent" });
+    } catch (error) {
+      console.error("Resend verification error:", error);
+      res.status(500).json({ error: "Failed to resend verification email" });
+    }
+  });
+
+  // ============================================================================
   // PASSWORD RESET ROUTES
   // ============================================================================
 
@@ -359,15 +446,7 @@ export function authRoutes(app: Express): void {
       // Create new reset token
       await storage.createPasswordResetToken(user.id, resetToken, expiresAt);
 
-      // TODO: Send email with reset link
-      // For development only - log the token (NEVER expose in production)
-      if (process.env.NODE_ENV === 'development') {
-        console.log('==================== PASSWORD RESET TOKEN (DEV ONLY) ====================');
-        console.log(`Email: ${email}`);
-        console.log(`Token: ${resetToken}`);
-        console.log(`Reset link: http://localhost:5000/reset-password?token=${resetToken}`);
-        console.log('========================================================================');
-      }
+      await sendPasswordResetEmail(email, resetToken);
 
       res.json({ 
         message: "If an account exists with that email, a password reset link has been sent."
