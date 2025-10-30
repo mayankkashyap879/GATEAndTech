@@ -177,4 +177,17 @@ export class QuestionStorage {
   async deleteSubject(id: string): Promise<void> {
     await db.delete(subjects).where(eq(subjects.id, id));
   }
+
+  async getQuestionVersions(questionId: string): Promise<Question[]> {
+    const question = await this.getQuestion(questionId);
+    if (!question) return [];
+    
+    const parentId = question.parentVersionId || questionId;
+    
+    return await db
+      .select()
+      .from(questions)
+      .where(eq(questions.parentVersionId, parentId))
+      .orderBy(asc(questions.versionNumber));
+  }
 }

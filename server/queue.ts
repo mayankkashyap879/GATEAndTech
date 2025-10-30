@@ -39,12 +39,19 @@ export type InvoiceGenerationJob = {
   userId: string;
 };
 
+export type BulkImportJob = {
+  bulkImportId: string;
+  userId: string;
+  records: any[];
+};
+
 // Create queues (only if Redis is available)
 // NOTE: Worker implementations will be added in task 5 to actually process these jobs
 export const testScoringQueue = connection ? new Queue<TestScoringJob>('test-scoring', { connection }) : null;
 export const reportQueue = connection ? new Queue<ReportGenerationJob>('report-generation', { connection }) : null;
 export const analyticsQueue = connection ? new Queue<AnalyticsUpdateJob>('analytics-update', { connection }) : null;
 export const invoiceQueue = connection ? new Queue<InvoiceGenerationJob>('invoice-generation', { connection }) : null;
+export const bulkImportQueue = connection ? new Queue<BulkImportJob>('bulk-import', { connection }) : null;
 
 /**
  * Check if queues are ready to use
@@ -159,6 +166,34 @@ export const queueHelpers = {
   },
 
   /**
+   * Add bulk import processing job to queue
+   */
+  async processBulkImport(bulkImportId: string, records: any[]) {
+    if (!bulkImportQueue || !(await areQueuesReady())) {
+      console.warn('⚠️ Queue not available, bulk import will be processed synchronously');
+      return;
+    }
+    try {
+      const job = await bulkImportQueue.add(
+        'process',
+        { bulkImportId, userId: '', records },
+        {
+          attempts: 2,
+          backoff: {
+            type: 'exponential',
+            delay: 3000,
+          },
+        }
+      );
+      console.log(`✅ Bulk import job queued for import ${bulkImportId}`);
+      return job;
+    } catch (error) {
+      console.error('Failed to queue bulk import job, will process synchronously:', error);
+      // Don't throw - degrade gracefully to synchronous processing
+    }
+  },
+
+  /**
    * Get job status
    */
   async getJobStatus(queue: Queue | null, jobId: string) {
@@ -215,6 +250,7 @@ process.on('SIGTERM', async () => {
   if (reportQueue) await reportQueue.close();
   if (analyticsQueue) await analyticsQueue.close();
   if (invoiceQueue) await invoiceQueue.close();
+  if (bulkImportQueue) await bulkImportQueue.close();
   console.log('Job queues closed');
 });
 
@@ -223,5 +259,6 @@ export default {
   reportQueue,
   analyticsQueue,
   invoiceQueue,
+  bulkImportQueue,
   queueHelpers,
 };

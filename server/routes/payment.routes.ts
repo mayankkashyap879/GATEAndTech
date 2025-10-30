@@ -6,6 +6,7 @@ import { requireAuth } from "../auth";
 import { verifyPaymentSchema } from "@shared/schema";
 import { z } from "zod";
 import { apiLimiter } from "../middleware/rate-limit.js";
+import { calculateInvoiceAmounts } from "../utils/invoice-generator";
 
 const isPaymentEnabled = Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
 
@@ -84,7 +85,7 @@ export function paymentRoutes(app: Express) {
         return res.status(503).json({ error: "Payment service not configured" });
       }
       
-      const { testSeriesId } = req.body;
+      const { testSeriesId, couponCode } = req.body;
       
       if (!testSeriesId) {
         return res.status(400).json({ error: "Test series ID is required" });
@@ -99,8 +100,33 @@ export function paymentRoutes(app: Express) {
         return res.status(400).json({ error: "This test series is not available" });
       }
 
+      let basePrice = parseFloat(testSeriesData.price);
+      let discountAmount = 0;
+      let appliedCouponId: string | undefined;
+
+      if (couponCode) {
+        const couponValidation = await storage.validateCoupon(couponCode, testSeriesId);
+        
+        if (!couponValidation.valid) {
+          return res.status(400).json({ error: couponValidation.error || "Invalid coupon" });
+        }
+
+        const coupon = couponValidation.coupon!;
+        appliedCouponId = coupon.id;
+
+        if (coupon.discountType === 'percentage') {
+          discountAmount = (basePrice * parseFloat(coupon.discountValue)) / 100;
+        } else {
+          discountAmount = parseFloat(coupon.discountValue);
+        }
+
+        discountAmount = Math.min(discountAmount, basePrice);
+      }
+
+      const finalPrice = basePrice - discountAmount;
+
       // Convert price from string to number (paise)
-      const priceInPaise = Math.round(parseFloat(testSeriesData.price) * 100);
+      const priceInPaise = Math.round(finalPrice * 100);
       
       if (priceInPaise === 0) {
         return res.status(400).json({ error: "Cannot create order for free test series" });
@@ -126,6 +152,8 @@ export function paymentRoutes(app: Express) {
           userId: user.id,
           testSeriesId: testSeriesData.id,
           validityDays: testSeriesData.validityDays.toString(),
+          couponId: appliedCouponId || '',
+          discountAmount: discountAmount.toString(),
         },
       };
 
@@ -147,6 +175,8 @@ export function paymentRoutes(app: Express) {
         currency: order.currency,
         transactionId: transaction.id,
         key: process.env.RAZORPAY_KEY_ID,
+        discountApplied: discountAmount,
+        finalAmount: finalPrice,
       });
     } catch (error: any) {
       console.error("Error creating Razorpay order:", error);
@@ -201,6 +231,9 @@ export function paymentRoutes(app: Express) {
       const order = await razorpay.orders.fetch(razorpay_order_id);
       const testSeriesIdRaw = order.notes?.testSeriesId;
       const validityDaysRaw = order.notes?.validityDays;
+      const couponIdRaw = order.notes?.couponId;
+      const discountAmountRaw = order.notes?.discountAmount;
+      
       const validityDays = typeof validityDaysRaw === 'number' 
         ? validityDaysRaw 
         : parseInt(String(validityDaysRaw || "90"));
@@ -222,21 +255,41 @@ export function paymentRoutes(app: Express) {
       // Check if user already has a purchase (could be expired)
       const existingPurchase = await storage.getUserPurchase(user.id, testSeriesId);
       
+      let purchase;
       if (existingPurchase) {
-        // Update existing purchase
         await storage.updateUserPurchase(existingPurchase.id, {
           status: "active",
           expiryDate,
           transactionId: transaction.id,
         });
+        purchase = await storage.getUserPurchase(user.id, testSeriesId);
       } else {
-        // Create new purchase
-        await storage.createUserPurchase({
+        purchase = await storage.createUserPurchase({
           userId: user.id,
           testSeriesId: testSeriesId,
           status: "active",
           expiryDate,
           transactionId: transaction.id,
+        });
+      }
+
+      if (couponIdRaw && String(couponIdRaw)) {
+        await storage.incrementCouponUsage(String(couponIdRaw));
+      }
+
+      if (purchase) {
+        const discountAmount = discountAmountRaw ? parseFloat(String(discountAmountRaw)) : 0;
+        const basePrice = parseFloat(testSeriesData.price);
+        
+        const invoiceAmounts = calculateInvoiceAmounts(basePrice, discountAmount);
+        const invoiceNumber = await storage.generateInvoiceNumber();
+        
+        await storage.createInvoice({
+          invoiceNumber,
+          purchaseId: purchase.id,
+          subtotal: invoiceAmounts.subtotal,
+          gstAmount: invoiceAmounts.gstAmount,
+          totalAmount: invoiceAmounts.totalAmount,
         });
       }
 

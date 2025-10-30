@@ -124,4 +124,50 @@ export function questionRoutes(app: Express): void {
       res.status(500).json({ error: "Internal server error" });
     }
   });
+
+  // Get question versions (requires read:Question permission)
+  app.get("/api/questions/:id/versions", can('read', 'Question'), async (req: Request, res: Response) => {
+    try {
+      const versions = await storage.getQuestionVersions(req.params.id);
+      res.json(versions);
+    } catch (error) {
+      console.error("Error fetching question versions:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Create new version of question (requires update:Question permission)
+  app.post("/api/questions/:id/versions", can('update', 'Question'), async (req: Request, res: Response) => {
+    try {
+      const currentUser = req.user as any;
+      const parentQuestion = await storage.getQuestion(req.params.id);
+      
+      if (!parentQuestion) {
+        return res.status(404).json({ error: "Parent question not found" });
+      }
+
+      const { topicId, ...questionData } = req.body;
+      
+      const validatedData = insertQuestionSchema.parse({
+        ...questionData,
+        createdBy: currentUser.id,
+        parentVersionId: parentQuestion.parentVersionId || parentQuestion.id,
+        versionNumber: parentQuestion.versionNumber + 1,
+      });
+      
+      const newVersion = await storage.createQuestion(validatedData);
+      
+      if (topicId) {
+        await storage.addQuestionTopic(newVersion.id, topicId);
+      }
+      
+      res.status(201).json(newVersion);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error("Error creating question version:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
 }

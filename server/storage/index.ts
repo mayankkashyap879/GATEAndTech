@@ -3,6 +3,12 @@ import { QuestionStorage } from "./question.storage";
 import { TestStorage } from "./test.storage";
 import { PaymentStorage } from "./payment.storage";
 import { DiscussionStorage } from "./discussion.storage";
+import { GamificationStorage } from "./gamification.storage";
+import { CouponStorage } from "./coupon.storage";
+import { InvoiceStorage } from "./invoice.storage";
+import { BulkImportStorage } from "./bulkimport.storage";
+import { CommentStorage } from "./comment.storage";
+import { TestSectionStorage } from "./testsection.storage";
 import type {
   User,
   InsertUser,
@@ -32,6 +38,28 @@ import type {
   InsertDiscussionThread,
   DiscussionPost,
   InsertDiscussionPost,
+  UserPoints,
+  InsertUserPoints,
+  Badge,
+  InsertBadge,
+  UserBadge,
+  InsertUserBadge,
+  Coupon,
+  InsertCoupon,
+  Invoice,
+  InsertInvoice,
+  BulkImport,
+  InsertBulkImport,
+  Comment,
+  InsertComment,
+  CommentVote,
+  InsertCommentVote,
+  Flag,
+  InsertFlag,
+  TestSection,
+  InsertTestSection,
+  SectionQuestion,
+  InsertSectionQuestion,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -165,6 +193,64 @@ export interface IStorage {
     percentage: number;
     submittedAt: Date;
   }>>;
+  getUserPoints(userId: string): Promise<UserPoints | undefined>;
+  createUserPoints(data: InsertUserPoints): Promise<UserPoints>;
+  updateUserPoints(userId: string, data: Partial<InsertUserPoints>): Promise<UserPoints | undefined>;
+  incrementUserPoints(userId: string, points: number): Promise<UserPoints | undefined>;
+  updateStreak(userId: string, streak: number): Promise<UserPoints | undefined>;
+  getLeaderboard(limit?: number): Promise<UserPoints[]>;
+  getBadge(id: string): Promise<Badge | undefined>;
+  getBadgeBySlug(slug: string): Promise<Badge | undefined>;
+  getAllBadges(): Promise<Badge[]>;
+  createBadge(data: InsertBadge): Promise<Badge>;
+  getUserBadges(userId: string): Promise<UserBadge[]>;
+  awardBadge(data: InsertUserBadge): Promise<UserBadge>;
+  hasUserBadge(userId: string, badgeId: string): Promise<boolean>;
+  getCoupon(id: string): Promise<Coupon | undefined>;
+  getCouponByCode(code: string): Promise<Coupon | undefined>;
+  getAllCoupons(filters?: { isActive?: boolean }): Promise<Coupon[]>;
+  createCoupon(data: InsertCoupon): Promise<Coupon>;
+  updateCoupon(id: string, data: Partial<InsertCoupon>): Promise<Coupon | undefined>;
+  deleteCoupon(id: string): Promise<void>;
+  incrementCouponUsage(id: string): Promise<Coupon | undefined>;
+  validateCoupon(code: string, testSeriesId?: string): Promise<{ valid: boolean; coupon?: Coupon; error?: string }>;
+  getInvoice(id: string): Promise<Invoice | undefined>;
+  getInvoiceByPurchaseId(purchaseId: string): Promise<Invoice | undefined>;
+  getInvoiceByNumber(invoiceNumber: string): Promise<Invoice | undefined>;
+  createInvoice(data: InsertInvoice): Promise<Invoice>;
+  updateInvoice(id: string, data: Partial<InsertInvoice>): Promise<Invoice | undefined>;
+  generateInvoiceNumber(): Promise<string>;
+  getBulkImport(id: string): Promise<BulkImport | undefined>;
+  getUserBulkImports(userId: string, limit?: number): Promise<BulkImport[]>;
+  createBulkImport(data: InsertBulkImport): Promise<BulkImport>;
+  updateBulkImport(id: string, data: Partial<InsertBulkImport>): Promise<BulkImport | undefined>;
+  updateBulkImportProgress(id: string, processedRows: number, successCount: number, errorCount: number): Promise<BulkImport | undefined>;
+  completeBulkImport(id: string, errors?: any[]): Promise<BulkImport | undefined>;
+  failBulkImport(id: string, errors: any[]): Promise<BulkImport | undefined>;
+  getComment(id: string): Promise<Comment | undefined>;
+  getQuestionComments(questionId: string): Promise<Comment[]>;
+  getCommentReplies(parentCommentId: string): Promise<Comment[]>;
+  createComment(data: InsertComment): Promise<Comment>;
+  updateComment(id: string, data: Partial<InsertComment>): Promise<Comment | undefined>;
+  deleteComment(id: string): Promise<void>;
+  incrementCommentUpvotes(id: string): Promise<Comment | undefined>;
+  decrementCommentUpvotes(id: string): Promise<Comment | undefined>;
+  getUserCommentVote(commentId: string, voterId: string): Promise<CommentVote | undefined>;
+  createCommentVote(data: InsertCommentVote): Promise<CommentVote>;
+  deleteCommentVote(commentId: string, voterId: string): Promise<void>;
+  createFlag(data: InsertFlag): Promise<Flag>;
+  getFlags(filters?: { status?: string }): Promise<Flag[]>;
+  updateFlag(id: string, status: string): Promise<Flag | undefined>;
+  getCommentFlags(commentId: string): Promise<Flag[]>;
+  getTestSection(id: string): Promise<TestSection | undefined>;
+  getTestSections(testId: string): Promise<TestSection[]>;
+  createTestSection(data: InsertTestSection): Promise<TestSection>;
+  updateTestSection(id: string, data: Partial<InsertTestSection>): Promise<TestSection | undefined>;
+  deleteTestSection(id: string): Promise<void>;
+  addQuestionToSection(data: InsertSectionQuestion): Promise<SectionQuestion>;
+  removeQuestionFromSection(sectionId: string, questionId: string): Promise<void>;
+  getSectionQuestions(sectionId: string): Promise<Question[]>;
+  getQuestionVersions(questionId: string): Promise<Question[]>;
 }
 
 export class Storage implements IStorage {
@@ -173,6 +259,12 @@ export class Storage implements IStorage {
   private testStorage: TestStorage;
   private paymentStorage: PaymentStorage;
   private discussionStorage: DiscussionStorage;
+  private gamificationStorage: GamificationStorage;
+  private couponStorage: CouponStorage;
+  private invoiceStorage: InvoiceStorage;
+  private bulkImportStorage: BulkImportStorage;
+  private commentStorage: CommentStorage;
+  private testSectionStorage: TestSectionStorage;
 
   constructor() {
     this.userStorage = new UserStorage();
@@ -180,6 +272,12 @@ export class Storage implements IStorage {
     this.testStorage = new TestStorage();
     this.paymentStorage = new PaymentStorage();
     this.discussionStorage = new DiscussionStorage();
+    this.gamificationStorage = new GamificationStorage();
+    this.couponStorage = new CouponStorage();
+    this.invoiceStorage = new InvoiceStorage();
+    this.bulkImportStorage = new BulkImportStorage();
+    this.commentStorage = new CommentStorage();
+    this.testSectionStorage = new TestSectionStorage();
   }
 
   getUser(id: string): Promise<User | undefined> {
@@ -560,6 +658,238 @@ export class Storage implements IStorage {
   }>> {
     return this.discussionStorage.getPerformanceTrend(userId, limit);
   }
+
+  getUserPoints(userId: string): Promise<UserPoints | undefined> {
+    return this.gamificationStorage.getUserPoints(userId);
+  }
+
+  createUserPoints(data: InsertUserPoints): Promise<UserPoints> {
+    return this.gamificationStorage.createUserPoints(data);
+  }
+
+  updateUserPoints(userId: string, data: Partial<InsertUserPoints>): Promise<UserPoints | undefined> {
+    return this.gamificationStorage.updateUserPoints(userId, data);
+  }
+
+  incrementUserPoints(userId: string, points: number): Promise<UserPoints | undefined> {
+    return this.gamificationStorage.incrementUserPoints(userId, points);
+  }
+
+  updateStreak(userId: string, streak: number): Promise<UserPoints | undefined> {
+    return this.gamificationStorage.updateStreak(userId, streak);
+  }
+
+  getLeaderboard(limit: number = 10): Promise<UserPoints[]> {
+    return this.gamificationStorage.getLeaderboard(limit);
+  }
+
+  getBadge(id: string): Promise<Badge | undefined> {
+    return this.gamificationStorage.getBadge(id);
+  }
+
+  getBadgeBySlug(slug: string): Promise<Badge | undefined> {
+    return this.gamificationStorage.getBadgeBySlug(slug);
+  }
+
+  getAllBadges(): Promise<Badge[]> {
+    return this.gamificationStorage.getAllBadges();
+  }
+
+  createBadge(data: InsertBadge): Promise<Badge> {
+    return this.gamificationStorage.createBadge(data);
+  }
+
+  getUserBadges(userId: string): Promise<UserBadge[]> {
+    return this.gamificationStorage.getUserBadges(userId);
+  }
+
+  awardBadge(data: InsertUserBadge): Promise<UserBadge> {
+    return this.gamificationStorage.awardBadge(data);
+  }
+
+  hasUserBadge(userId: string, badgeId: string): Promise<boolean> {
+    return this.gamificationStorage.hasUserBadge(userId, badgeId);
+  }
+
+  getCoupon(id: string): Promise<Coupon | undefined> {
+    return this.couponStorage.getCoupon(id);
+  }
+
+  getCouponByCode(code: string): Promise<Coupon | undefined> {
+    return this.couponStorage.getCouponByCode(code);
+  }
+
+  getAllCoupons(filters?: { isActive?: boolean }): Promise<Coupon[]> {
+    return this.couponStorage.getAllCoupons(filters);
+  }
+
+  createCoupon(data: InsertCoupon): Promise<Coupon> {
+    return this.couponStorage.createCoupon(data);
+  }
+
+  updateCoupon(id: string, data: Partial<InsertCoupon>): Promise<Coupon | undefined> {
+    return this.couponStorage.updateCoupon(id, data);
+  }
+
+  deleteCoupon(id: string): Promise<void> {
+    return this.couponStorage.deleteCoupon(id);
+  }
+
+  incrementCouponUsage(id: string): Promise<Coupon | undefined> {
+    return this.couponStorage.incrementUsageCount(id);
+  }
+
+  validateCoupon(code: string, testSeriesId?: string): Promise<{ valid: boolean; coupon?: Coupon; error?: string }> {
+    return this.couponStorage.validateCoupon(code, testSeriesId);
+  }
+
+  getInvoice(id: string): Promise<Invoice | undefined> {
+    return this.invoiceStorage.getInvoice(id);
+  }
+
+  getInvoiceByPurchaseId(purchaseId: string): Promise<Invoice | undefined> {
+    return this.invoiceStorage.getInvoiceByPurchaseId(purchaseId);
+  }
+
+  getInvoiceByNumber(invoiceNumber: string): Promise<Invoice | undefined> {
+    return this.invoiceStorage.getInvoiceByNumber(invoiceNumber);
+  }
+
+  createInvoice(data: InsertInvoice): Promise<Invoice> {
+    return this.invoiceStorage.createInvoice(data);
+  }
+
+  updateInvoice(id: string, data: Partial<InsertInvoice>): Promise<Invoice | undefined> {
+    return this.invoiceStorage.updateInvoice(id, data);
+  }
+
+  generateInvoiceNumber(): Promise<string> {
+    return this.invoiceStorage.generateInvoiceNumber();
+  }
+
+  getBulkImport(id: string): Promise<BulkImport | undefined> {
+    return this.bulkImportStorage.getBulkImport(id);
+  }
+
+  getUserBulkImports(userId: string, limit: number = 20): Promise<BulkImport[]> {
+    return this.bulkImportStorage.getUserBulkImports(userId, limit);
+  }
+
+  createBulkImport(data: InsertBulkImport): Promise<BulkImport> {
+    return this.bulkImportStorage.createBulkImport(data);
+  }
+
+  updateBulkImport(id: string, data: Partial<InsertBulkImport>): Promise<BulkImport | undefined> {
+    return this.bulkImportStorage.updateBulkImport(id, data);
+  }
+
+  updateBulkImportProgress(id: string, processedRows: number, successCount: number, errorCount: number): Promise<BulkImport | undefined> {
+    return this.bulkImportStorage.updateProgress(id, processedRows, successCount, errorCount);
+  }
+
+  completeBulkImport(id: string, errors?: any[]): Promise<BulkImport | undefined> {
+    return this.bulkImportStorage.completeImport(id, errors);
+  }
+
+  failBulkImport(id: string, errors: any[]): Promise<BulkImport | undefined> {
+    return this.bulkImportStorage.failImport(id, errors);
+  }
+
+  getComment(id: string): Promise<Comment | undefined> {
+    return this.commentStorage.getComment(id);
+  }
+
+  getQuestionComments(questionId: string): Promise<Comment[]> {
+    return this.commentStorage.getQuestionComments(questionId);
+  }
+
+  getCommentReplies(parentCommentId: string): Promise<Comment[]> {
+    return this.commentStorage.getCommentReplies(parentCommentId);
+  }
+
+  createComment(data: InsertComment): Promise<Comment> {
+    return this.commentStorage.createComment(data);
+  }
+
+  updateComment(id: string, data: Partial<InsertComment>): Promise<Comment | undefined> {
+    return this.commentStorage.updateComment(id, data);
+  }
+
+  deleteComment(id: string): Promise<void> {
+    return this.commentStorage.deleteComment(id);
+  }
+
+  incrementCommentUpvotes(id: string): Promise<Comment | undefined> {
+    return this.commentStorage.incrementUpvotes(id);
+  }
+
+  decrementCommentUpvotes(id: string): Promise<Comment | undefined> {
+    return this.commentStorage.decrementUpvotes(id);
+  }
+
+  getUserCommentVote(commentId: string, voterId: string): Promise<CommentVote | undefined> {
+    return this.commentStorage.getUserVote(commentId, voterId);
+  }
+
+  createCommentVote(data: InsertCommentVote): Promise<CommentVote> {
+    return this.commentStorage.createVote(data);
+  }
+
+  deleteCommentVote(commentId: string, voterId: string): Promise<void> {
+    return this.commentStorage.deleteVote(commentId, voterId);
+  }
+
+  createFlag(data: InsertFlag): Promise<Flag> {
+    return this.commentStorage.createFlag(data);
+  }
+
+  getFlags(filters?: { status?: string }): Promise<Flag[]> {
+    return this.commentStorage.getFlags(filters);
+  }
+
+  updateFlag(id: string, status: string): Promise<Flag | undefined> {
+    return this.commentStorage.updateFlag(id, status);
+  }
+
+  getCommentFlags(commentId: string): Promise<Flag[]> {
+    return this.commentStorage.getCommentFlags(commentId);
+  }
+
+  getTestSection(id: string): Promise<TestSection | undefined> {
+    return this.testSectionStorage.getTestSection(id);
+  }
+
+  getTestSections(testId: string): Promise<TestSection[]> {
+    return this.testSectionStorage.getTestSections(testId);
+  }
+
+  createTestSection(data: InsertTestSection): Promise<TestSection> {
+    return this.testSectionStorage.createTestSection(data);
+  }
+
+  updateTestSection(id: string, data: Partial<InsertTestSection>): Promise<TestSection | undefined> {
+    return this.testSectionStorage.updateTestSection(id, data);
+  }
+
+  deleteTestSection(id: string): Promise<void> {
+    return this.testSectionStorage.deleteTestSection(id);
+  }
+
+  addQuestionToSection(data: InsertSectionQuestion): Promise<SectionQuestion> {
+    return this.testSectionStorage.addQuestionToSection(data);
+  }
+
+  removeQuestionFromSection(sectionId: string, questionId: string): Promise<void> {
+    return this.testSectionStorage.removeQuestionFromSection(sectionId, questionId);
+  }
+
+  getSectionQuestions(sectionId: string): Promise<Question[]> {
+    return this.testSectionStorage.getSectionQuestions(sectionId);
+  }
+
+  async getQuestionVersions(questionId: string): Promise<Question[]> {
+    return this.questionStorage.getQuestionVersions(questionId);
+  }
 }
 
-export const storage = new Storage();
+export const storage: IStorage = new Storage();
