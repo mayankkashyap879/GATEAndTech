@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, Pencil, Trash2, Shield, Lock } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import DashboardNavigation from '@/components/dashboard/DashboardNavigation';
 
 interface Role {
   id: string;
@@ -213,7 +214,8 @@ export default function RoleManagement() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-4 space-y-8">
+      <DashboardNavigation />
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-page-title">Role & Permission Management</h1>

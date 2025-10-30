@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart3, TrendingUp, Target, Clock, Award, Activity } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { format } from "date-fns";
+import DashboardNavigation from "@/components/dashboard/DashboardNavigation";
 
 interface PerformanceStats {
   totalTests: number;
@@ -71,6 +72,7 @@ export default function Analytics() {
   if (statsLoading) {
     return (
       <div className="container mx-auto p-6 space-y-6">
+        <DashboardNavigation />
         <div className="flex items-center justify-between">
           <Skeleton className="h-10 w-48" />
         </div>
@@ -86,6 +88,7 @@ export default function Analytics() {
   if (!stats) {
     return (
       <div className="container mx-auto p-6">
+        <DashboardNavigation />
         <Card>
           <CardHeader>
             <CardTitle>No Data Available</CardTitle>
@@ -104,6 +107,7 @@ export default function Analytics() {
 
   return (
     <div className="container mx-auto p-6 space-y-6" data-testid="page-analytics">
+      <DashboardNavigation />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight" data-testid="text-analytics-title">Analytics Dashboard</h1>

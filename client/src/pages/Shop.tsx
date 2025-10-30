@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import DashboardNavigation from "@/components/dashboard/DashboardNavigation";
 
 interface TestSeries {
   id: string;
@@ -194,32 +195,35 @@ export default function Shop() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2" data-testid="text-shop-title">Test Series Shop</h1>
-          <p className="text-muted-foreground text-lg" data-testid="text-shop-subtitle">
-            Choose from our comprehensive test series to ace your GATE exam
-          </p>
-        </div>
+      <div className="container mx-auto p-6 space-y-8">
+        <DashboardNavigation />
+        <div className="space-y-8">
+          <header className="space-y-3">
+            <h1 className="text-4xl font-bold" data-testid="text-shop-title">Test Series Shop</h1>
+            <p className="text-muted-foreground text-lg" data-testid="text-shop-subtitle">
+              Choose from our comprehensive test series to ace your GATE exam
+            </p>
+          </header>
 
-        {(razorpayError || !razorpayConfig?.key) && (
-          <Alert variant="destructive" className="mb-6" data-testid="alert-payment-unavailable">
-            <XCircle className="h-4 w-4" />
-            <AlertTitle>Payment System Unavailable</AlertTitle>
-            <AlertDescription>
-              Our payment system is currently unavailable. You can browse test series, but purchases are temporarily disabled.
-              Please try again later.
-            </AlertDescription>
-          </Alert>
-        )}
+          {(razorpayError || !razorpayConfig?.key) && (
+            <Alert variant="destructive" data-testid="alert-payment-unavailable">
+              <XCircle className="h-4 w-4" />
+              <AlertTitle>Payment System Unavailable</AlertTitle>
+              <AlertDescription>
+                Our payment system is currently unavailable. You can browse test series, but purchases are temporarily disabled.
+                Please try again later.
+              </AlertDescription>
+            </Alert>
+          )}
 
         {freeTestSeries.length > 0 && (
-          <div className="mb-12">
-            <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-semibold">Free Test Series</h2>
               <Badge variant="secondary" className="text-base" data-testid="badge-free-section">
                 Free Test Series
               </Badge>
-            </h2>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {freeTestSeries.map((testSeries) => (
                 <Card key={testSeries.id} className="hover-elevate flex flex-col" data-testid={`card-test-series-${testSeries.id}`}>
@@ -259,16 +263,17 @@ export default function Shop() {
                 </Card>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
         {paidTestSeries.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-semibold">Premium Test Series</h2>
               <Badge className="text-base" data-testid="badge-premium-section">
                 Premium Test Series
               </Badge>
-            </h2>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {paidTestSeries.map((testSeries) => {
                 const purchased = isPurchased(testSeries.id);
@@ -359,10 +364,10 @@ export default function Shop() {
                       )}
                     </CardFooter>
                   </Card>
-                );
-              })}
-            </div>
-          </div>
+                  );
+                })}
+              </div>
+          </section>
         )}
 
         {activeTestSeries.length === 0 && (
@@ -372,6 +377,7 @@ export default function Shop() {
             </p>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

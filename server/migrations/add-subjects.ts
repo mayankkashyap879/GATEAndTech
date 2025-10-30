@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { subjects, topics } from '@/shared/schema';
+import { subjects, topics } from '@shared/schema';
 import { sql } from 'drizzle-orm';
 
 const GATE_SUBJECTS = [

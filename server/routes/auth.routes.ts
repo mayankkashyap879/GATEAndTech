@@ -57,7 +57,13 @@ export function authRoutes(app: Express): void {
         if (err) {
           return res.status(500).json({ error: "Failed to log in after registration" });
         }
-        res.status(201).json({ user: userWithoutPassword });
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("Session save error after registration:", saveErr);
+            return res.status(500).json({ error: "Failed to persist login session" });
+          }
+          res.status(201).json({ user: userWithoutPassword });
+        });
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -98,8 +104,14 @@ export function authRoutes(app: Express): void {
         if (err) {
           return res.status(500).json({ error: "Failed to log in" });
         }
-        const { passwordHash: _, ...userWithoutPassword } = user;
-        res.json({ user: userWithoutPassword });
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("Session save error on login:", saveErr);
+            return res.status(500).json({ error: "Failed to persist login session" });
+          }
+          const { passwordHash: _, ...userWithoutPassword } = user;
+          res.json({ user: userWithoutPassword });
+        });
       });
     })(req, res, next);
   });
@@ -296,8 +308,14 @@ export function authRoutes(app: Express): void {
         if (err) {
           return res.status(500).json({ error: "Failed to log in" });
         }
-        const { passwordHash: _, ...userWithoutPassword } = user;
-        res.json({ user: userWithoutPassword });
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("Session save error after 2FA verify:", saveErr);
+            return res.status(500).json({ error: "Failed to persist login session" });
+          }
+          const { passwordHash: _, ...userWithoutPassword } = user;
+          res.json({ user: userWithoutPassword });
+        });
       });
     } catch (error) {
       console.error("2FA login error:", error);

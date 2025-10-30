@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useRoute, useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +20,7 @@ import { RichTextEditor } from "@/components/RichTextEditor";
 import type { Question, Topic, Subject } from "@shared/schema";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import DashboardNavigation from "@/components/dashboard/DashboardNavigation";
 
 const questionSchema = z.object({
   content: z.string().min(10, "Question content must be at least 10 characters"),
@@ -28,7 +29,6 @@ const questionSchema = z.object({
   marks: z.number().min(1).max(10),
   negativeMarks: z.number().min(0).max(5),
   explanation: z.string().optional(),
-  imageUrl: z.string().url().optional().or(z.literal("")),
   isPublished: z.boolean(),
   options: z.array(z.object({
     id: z.string(),
@@ -85,7 +85,6 @@ export default function QuestionForm() {
       marks: 1,
       negativeMarks: 0,
       explanation: "",
-      imageUrl: "",
       isPublished: false,
       options: [
         { id: "A", text: "", isCorrect: false },
@@ -118,7 +117,6 @@ export default function QuestionForm() {
         marks: question.marks,
         negativeMarks: question.negativeMarks,
         explanation: question.explanation || "",
-        imageUrl: question.imageUrl || "",
         isPublished: question.isPublished,
         options: question.options as any || [],
         correctAnswer: question.correctAnswer || "",
@@ -225,10 +223,19 @@ export default function QuestionForm() {
     form.setValue("options", currentOptions.filter((_, i) => i !== index));
   };
 
+  const PageShell = ({ children }: { children: ReactNode }) => (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto p-6 space-y-8">
+        <DashboardNavigation />
+        {children}
+      </div>
+    </div>
+  );
+
   // All authenticated users can create/edit questions
   if (!user) {
     return (
-      <div className="min-h-screen bg-background p-4 md:p-8">
+      <PageShell>
         <div className="max-w-4xl mx-auto">
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
@@ -244,12 +251,32 @@ export default function QuestionForm() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </PageShell>
+    );
+  }
+
+  if (user.role !== "admin" && user.role !== "moderator") {
+    return (
+      <PageShell>
+        <div className="max-w-4xl mx-auto">
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12 space-y-3">
+              <p className="text-lg font-medium text-foreground">Permission Required</p>
+              <p className="text-sm text-muted-foreground text-center">
+                Only administrators and moderators can create or edit questions.
+              </p>
+              <Link href="/questions">
+                <Button variant="outline">Back to Question Bank</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
+    <PageShell>
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -384,7 +411,7 @@ export default function QuestionForm() {
                   />
 
                   <FormItem>
-                    <FormLabel>Subject *</FormLabel>
+                    <FormLabel htmlFor="subject-select">Subject *</FormLabel>
                     <Select
                       onValueChange={(value) => {
                         setSelectedSubjectId(value);
@@ -392,7 +419,7 @@ export default function QuestionForm() {
                       }}
                       value={selectedSubjectId}
                     >
-                      <SelectTrigger data-testid="select-subject">
+                      <SelectTrigger id="subject-select" name="subjectId" data-testid="select-subject">
                         <SelectValue placeholder="Select subject" />
                       </SelectTrigger>
                       <SelectContent>
@@ -411,7 +438,7 @@ export default function QuestionForm() {
                     render={({ field }) => (
                       <FormItem>
                         <div className="flex items-center justify-between">
-                          <FormLabel>Topic *</FormLabel>
+                          <FormLabel htmlFor="topic-select">Topic *</FormLabel>
                           {selectedSubjectId && (
                             <Button
                               type="button"
@@ -432,7 +459,7 @@ export default function QuestionForm() {
                           disabled={!selectedSubjectId}
                         >
                           <FormControl>
-                            <SelectTrigger data-testid="select-topic">
+                            <SelectTrigger id="topic-select" name="topicId" data-testid="select-topic">
                               <SelectValue
                                 placeholder={
                                   selectedSubjectId
@@ -575,24 +602,6 @@ export default function QuestionForm() {
 
                 <FormField
                   control={form.control}
-                  name="imageUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Image URL</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="https://example.com/image.jpg"
-                          data-testid="input-image-url"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
                   name="isPublished"
                   render={({ field }) => (
                     <FormItem className="flex items-center justify-between rounded-lg border p-4">
@@ -686,6 +695,6 @@ export default function QuestionForm() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

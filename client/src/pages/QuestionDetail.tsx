@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Edit, CheckCircle2, XCircle, BookOpen, Info } from "lucide-react";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
+import DashboardNavigation from "@/components/dashboard/DashboardNavigation";
 import type { Question } from "@shared/schema";
 
 export default function QuestionDetail() {
@@ -34,9 +36,18 @@ export default function QuestionDetail() {
     }
   };
 
+  const PageShell = ({ children }: { children: ReactNode }) => (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto p-6 space-y-8">
+        <DashboardNavigation />
+        {children}
+      </div>
+    </div>
+  );
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-4 md:p-8">
+      <PageShell>
         <div className="max-w-4xl mx-auto space-y-6">
           <Skeleton className="h-10 w-1/3" />
           <Card>
@@ -50,13 +61,13 @@ export default function QuestionDetail() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   if (!question) {
     return (
-      <div className="min-h-screen bg-background p-4 md:p-8">
+      <PageShell>
         <div className="max-w-4xl mx-auto">
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
@@ -71,12 +82,12 @@ export default function QuestionDetail() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
+    <PageShell>
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -222,8 +233,8 @@ export default function QuestionDetail() {
               </span>
             </div>
           </CardContent>
-        </Card>
+      </Card>
       </div>
-    </div>
+    </PageShell>
   );
 }

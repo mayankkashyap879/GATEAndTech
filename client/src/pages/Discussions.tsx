@@ -12,6 +12,7 @@ import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import DashboardNavigation from "@/components/dashboard/DashboardNavigation";
 
 interface Thread {
   id: string;
@@ -93,6 +94,7 @@ export default function Discussions() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 space-y-6">
+        <DashboardNavigation />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { useViewAsRole } from "@/contexts/ViewAsRoleContext";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Filter, BookOpen, Clock, BarChart } from "lucide-react";
 import type { Question, Topic } from "@shared/schema";
+import DashboardNavigation from "@/components/dashboard/DashboardNavigation";
 
 export default function Questions() {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { effectiveRole } = useViewAsRole();
+  const [, setLocation] = useLocation();
   const [selectedTopic, setSelectedTopic] = useState<string>("all");
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
@@ -41,7 +41,10 @@ export default function Questions() {
 
   // All authenticated users (student, moderator, admin) can create questions
   // Wait for auth to load before showing the button
-  const canManageQuestions = !isAuthLoading && !!user;
+  const canManageQuestions =
+    !isAuthLoading &&
+    !!user &&
+    (user.role === "admin" || user.role === "moderator");
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -72,6 +75,7 @@ export default function Questions() {
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
+        <DashboardNavigation />
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -81,12 +85,14 @@ export default function Questions() {
             </p>
           </div>
           {canManageQuestions && (
-            <Link href="/questions/new">
-              <Button className="gap-2" data-testid="button-create-question">
-                <Plus className="h-4 w-4" />
-                Add Question
-              </Button>
-            </Link>
+            <Button
+              className="gap-2"
+              data-testid="button-create-question"
+              onClick={() => setLocation("/questions/new")}
+            >
+              <Plus className="h-4 w-4" />
+              Add Question
+            </Button>
           )}
         </div>
 

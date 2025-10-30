@@ -1,0 +1,1 @@
+C:/Program Files/PostgreSQL/16/bin/postgres.exe "-D" ".local/postgres-data" "-p" "5433"

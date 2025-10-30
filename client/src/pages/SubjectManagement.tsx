@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Edit, Trash2, BookOpen } from "lucide-react";
 import type { Subject, Topic } from "@shared/schema";
+import DashboardNavigation from "@/components/dashboard/DashboardNavigation";
 
 export default function SubjectManagement() {
   const { toast } = useToast();
@@ -161,6 +162,7 @@ export default function SubjectManagement() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      <DashboardNavigation />
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold" data-testid="page-title">Subject & Topic Management</h1>

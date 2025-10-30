@@ -17,6 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+  const [userState, setUserState] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Fetch current user
@@ -26,11 +27,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
-  const user = data?.user || null;
+  const user = userState;
 
   useEffect(() => {
-    setIsAuthenticated(!!user);
-  }, [user]);
+    if (data?.user) {
+      setUserState(data.user);
+      setIsAuthenticated(true);
+    } else if (data === null) {
+      setUserState(null);
+      setIsAuthenticated(false);
+    }
+  }, [data]);
 
   // Login mutation
   const loginMutation = useMutation({
@@ -38,8 +45,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await apiRequest("POST", "/api/auth/login", credentials);
       return await response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    onSuccess: (data) => {
+      if (data?.user) {
+        queryClient.setQueryData(["/api/auth/me"], { user: data.user });
+        setUserState(data.user);
+        setIsAuthenticated(true);
+      }
+      // We already seeded the cache; explicit refetch can be triggered manually if needed.
     },
   });
 
@@ -49,8 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await apiRequest("POST", "/api/auth/register", data);
       return await response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    onSuccess: (data) => {
+      if (data?.user) {
+        queryClient.setQueryData(["/api/auth/me"], { user: data.user });
+        setUserState(data.user);
+        setIsAuthenticated(true);
+      }
+      // Cache already updated with the new user.
     },
   });
 
@@ -60,18 +77,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await apiRequest("POST", "/api/auth/logout");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      queryClient.setQueryData(["/api/auth/me"], null);
+      setUserState(null);
       setIsAuthenticated(false);
     },
   });
 
   const login = async (email: string, password: string) => {
+    await queryClient.cancelQueries({ queryKey: ["/api/auth/me"] });
     const result = await loginMutation.mutateAsync({ email, password });
+    if (result?.user) {
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    }
     return result;
   };
 
   const register = async (data: { name: string; email: string; password: string }) => {
-    await registerMutation.mutateAsync(data);
+    await queryClient.cancelQueries({ queryKey: ["/api/auth/me"] });
+    const result = await registerMutation.mutateAsync(data);
+    if ((result as any)?.user) {
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    }
   };
 
   const logout = async () => {

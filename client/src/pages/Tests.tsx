@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { Clock, FileText, Plus, Trophy } from "lucide-react";
 import type { Test } from "@shared/schema";
+import DashboardNavigation from "@/components/dashboard/DashboardNavigation";
 
 export default function Tests() {
   const { user } = useAuth();
@@ -30,7 +31,8 @@ export default function Tests() {
   const canCreateTest = user && (user.role === "admin" || user.role === "moderator");
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-4 space-y-8">
+      <DashboardNavigation />
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-page-title">Mock Tests</h1>

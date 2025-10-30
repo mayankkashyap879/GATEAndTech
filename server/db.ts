@@ -1,24 +1,32 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "@shared/schema";
 
-neonConfig.webSocketConstructor = ws;
+type ProcessWithEnvFile = NodeJS.Process & {
+  loadEnvFile?: (path?: string) => void;
+};
+
+const loadEnvFile = (process as ProcessWithEnvFile).loadEnvFile;
+if (typeof loadEnvFile === "function") {
+  loadEnvFile();
+}
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
+    "DATABASE_URL must be set. Create a .env from .env.example with your Postgres connection string.",
   );
 }
 
 // Log database connection info (without exposing credentials)
 const dbUrl = new URL(process.env.DATABASE_URL);
-console.log(`📦 Connecting to database at ${dbUrl.hostname}...`);
+console.log(`[db] Connecting to database at ${dbUrl.hostname}...`);
 
-export const pool = new Pool({ 
+const isLocalhost = ["localhost", "127.0.0.1"].includes(dbUrl.hostname);
+
+export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Add connection timeout and retry settings
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: 10_000,
+  ssl: isLocalhost ? false : { rejectUnauthorized: false },
 });
 
 export const db = drizzle({ client: pool, schema });
