@@ -10,6 +10,7 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
+import VerifyEmail from "@/pages/VerifyEmail";
 import Dashboard from "@/pages/Dashboard";
 import Security from "@/pages/Security";
 import Questions from "@/pages/Questions";
@@ -19,6 +20,7 @@ import Tests from "@/pages/Tests";
 import TestForm from "@/pages/TestForm";
 import TakeTest from "@/pages/TakeTest";
 import TestResults from "@/pages/TestResults";
+import TestReview from "@/pages/TestReview";
 import Analytics from "@/pages/Analytics";
 import Discussions from "@/pages/Discussions";
 import ThreadDetail from "@/pages/ThreadDetail";
@@ -36,6 +38,7 @@ function Router() {
       <Route path="/register" component={Register} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/verify-email" component={VerifyEmail} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/security" component={Security} />
       <Route path="/analytics" component={Analytics} />
@@ -52,6 +55,7 @@ function Router() {
       <Route path="/tests/:id/edit" component={TestForm} />
       <Route path="/tests/:id" component={TakeTest} />
       <Route path="/attempts/:id/results" component={TestResults} />
+      <Route path="/attempts/:id/review" component={TestReview} />
       <Route path="/admin/roles" component={RoleManagement} />
       <Route path="/admin/subjects" component={SubjectManagement} />
       <Route component={NotFound} />

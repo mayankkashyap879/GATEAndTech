@@ -10,13 +10,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, Calculator, BookOpen } from "lucide-react";
+import { Loader2, Calculator as CalculatorIcon, BookOpen } from "lucide-react";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
-import type { Test, Question, TestAttempt } from "@shared/schema";
+import type { Test, Question, TestAttempt, TestSection } from "@shared/schema";
 import QuestionPalette from "@/components/test/QuestionPalette";
 import TestInstructions from "@/components/test/TestInstructions";
 import TestSummary from "@/components/test/TestSummary";
-import CalculatorDialog from "@/components/test/CalculatorDialog";
+import Calculator from "@/components/test/Calculator";
+import SectionNav from "@/components/test/SectionNav";
 
 type ViewState = "instructions" | "test" | "summary";
 
@@ -34,6 +35,8 @@ export default function TakeTest() {
   const [visitedQuestions, setVisitedQuestions] = useState<Set<string>>(new Set());
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+  const [sectionTimeRemaining, setSectionTimeRemaining] = useState<number | null>(null);
   
   // Refs for debouncing - avoids cleanup effect dependency issues
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -60,6 +63,16 @@ export default function TakeTest() {
     onSuccess: (attempt: TestAttempt) => {
       setAttemptId(attempt.id);
       setTimeLeft((test?.duration || 0) * 60);
+      
+      // Initialize section state if test has sections
+      const testSections = (test as any)?.sections as TestSection[] | undefined;
+      if (testSections && testSections.length > 0) {
+        setActiveSectionId(testSections[0].id);
+        if (testSections[0].durationSeconds) {
+          setSectionTimeRemaining(testSections[0].durationSeconds);
+        }
+      }
+      
       setViewState("test");
     },
     onError: () => {
@@ -107,6 +120,32 @@ export default function TakeTest() {
       return () => clearInterval(timer);
     }
   }, [viewState, timeLeft]);
+
+  // Section timer
+  useEffect(() => {
+    if (viewState === "test" && sectionTimeRemaining !== null && sectionTimeRemaining > 0) {
+      const timer = setInterval(() => {
+        setSectionTimeRemaining((prev) => {
+          if (prev !== null && prev <= 1) {
+            // Section time expired - move to next section
+            const testSections = (test as any)?.sections as TestSection[] | undefined;
+            if (testSections && activeSectionId) {
+              const currentIndex = testSections.findIndex(s => s.id === activeSectionId);
+              if (currentIndex < testSections.length - 1) {
+                // Move to next section
+                const nextSection = testSections[currentIndex + 1];
+                handleSectionChange(nextSection.id);
+              }
+            }
+            return 0;
+          }
+          return prev !== null ? prev - 1 : null;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [viewState, sectionTimeRemaining, activeSectionId]);
 
   // Sync refs with state to avoid stale closures
   useEffect(() => {
@@ -160,12 +199,23 @@ export default function TakeTest() {
   }, []);
 
   const saveResponseMutation = useMutation({
-    mutationFn: async (data: { questionId: string; selectedAnswer: string; isMarkedForReview: boolean }) => {
+    mutationFn: async (data: { questionId: string; selectedAnswer: string; isMarkedForReview: boolean; isVisited?: boolean; timeSpentSeconds?: number }) => {
       const response = await apiRequest("POST", `/api/attempts/${attemptId}/responses`, {
         ...data,
-        timeTaken: 0,
+        timeSpentSeconds: data.timeSpentSeconds || 0,
+        isVisited: data.isVisited !== undefined ? data.isVisited : true,
       });
       return response.json();
+    },
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+    onError: (error, variables) => {
+      console.error("Failed to save response after retries:", error);
+      toast({
+        title: "Save Failed",
+        description: "Your answer couldn't be saved. It will be retried automatically.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -310,6 +360,46 @@ export default function TakeTest() {
     setCurrentQuestionIndex(index);
   };
 
+  const handleSectionChange = (sectionId: number) => {
+    const testSections = (test as any)?.sections as TestSection[] | undefined;
+    const section = testSections?.find(s => s.id === sectionId);
+    if (section) {
+      setActiveSectionId(sectionId);
+      if (section.durationSeconds) {
+        setSectionTimeRemaining(section.durationSeconds);
+      } else {
+        setSectionTimeRemaining(null);
+      }
+      
+      // Navigate to first question of this section
+      const firstQuestionIndex = questions?.findIndex(q => q.sectionId === sectionId) ?? 0;
+      if (firstQuestionIndex !== -1) {
+        setCurrentQuestionIndex(firstQuestionIndex);
+      }
+    }
+  };
+
+  const getSectionProgress = () => {
+    const testSections = (test as any)?.sections as TestSection[] | undefined;
+    if (!testSections || !questions) return {};
+
+    const progress: Record<number, { answered: number; total: number }> = {};
+    
+    for (const section of testSections) {
+      const sectionQuestions = questions.filter(q => q.sectionId === section.id);
+      const answeredCount = sectionQuestions.filter(q => 
+        answers[q.id] && answers[q.id].trim() !== ""
+      ).length;
+      
+      progress[section.id] = {
+        answered: answeredCount,
+        total: sectionQuestions.length,
+      };
+    }
+    
+    return progress;
+  };
+
   if (isLoadingTest || isLoadingQuestions) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -372,7 +462,7 @@ export default function TakeTest() {
               onClick={() => setShowCalculator(true)}
               data-testid="button-calculator"
             >
-              <Calculator className="h-4 w-4 mr-2" />
+              <CalculatorIcon className="h-4 w-4 mr-2" />
               Calculator
             </Button>
             <Button
@@ -390,18 +480,18 @@ export default function TakeTest() {
           </div>
         </div>
         
-        <div className="bg-blue-700 px-6 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Badge variant="secondary" className="bg-blue-800 text-white hover:bg-blue-800">
-              Section
-            </Badge>
-            <span className="text-sm">All Questions</span>
-          </div>
-          <div className="text-sm">
-            Question Type: <strong>{currentQuestion.type === "mcq_single" ? "MCQ" : currentQuestion.type === "mcq_multiple" ? "MSQ" : "Numerical"}</strong>
-          </div>
-        </div>
       </div>
+      
+      {/* Section Navigation */}
+      {(test as any)?.sections && (test as any).sections.length > 0 && (
+        <SectionNav
+          sections={(test as any).sections}
+          activeSectionId={activeSectionId}
+          onSectionChange={handleSectionChange}
+          sectionProgress={getSectionProgress()}
+          sectionTimeRemaining={sectionTimeRemaining}
+        />
+      )}
 
       <div className="flex">
         {/* Main Question Area */}
@@ -544,11 +634,10 @@ export default function TakeTest() {
         />
       </div>
 
-      {/* Calculator Dialog */}
-      <CalculatorDialog
-        open={showCalculator}
-        onOpenChange={setShowCalculator}
-      />
+      {/* Calculator */}
+      {showCalculator && (
+        <Calculator onClose={() => setShowCalculator(false)} />
+      )}
     </div>
   );
 }

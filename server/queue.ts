@@ -45,13 +45,52 @@ export type BulkImportJob = {
   records: any[];
 };
 
+export type EmailJob = {
+  to: string;
+  subject: string;
+  template: string;
+  data: Record<string, any>;
+};
+
+export type NotificationJob = {
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  data?: Record<string, any>;
+};
+
+export type ImportJob = {
+  importId: string;
+  userId: string;
+  fileUrl: string;
+  type: 'csv' | 'qti';
+  mapping: Record<string, string>;
+};
+
+export type GamificationJob = {
+  userId: string;
+  eventType: string;
+  data: Record<string, any>;
+};
+
+export type PercentileCalculationJob = {
+  testId: string;
+  attemptId: string;
+};
+
 // Create queues (only if Redis is available)
-// NOTE: Worker implementations will be added in task 5 to actually process these jobs
+// NOTE: Worker implementations will be added in milestones to actually process these jobs
 export const testScoringQueue = connection ? new Queue<TestScoringJob>('test-scoring', { connection }) : null;
 export const reportQueue = connection ? new Queue<ReportGenerationJob>('report-generation', { connection }) : null;
 export const analyticsQueue = connection ? new Queue<AnalyticsUpdateJob>('analytics-update', { connection }) : null;
 export const invoiceQueue = connection ? new Queue<InvoiceGenerationJob>('invoice-generation', { connection }) : null;
 export const bulkImportQueue = connection ? new Queue<BulkImportJob>('bulk-import', { connection }) : null;
+export const emailQueue = connection ? new Queue<EmailJob>('email', { connection }) : null;
+export const notificationQueue = connection ? new Queue<NotificationJob>('notification', { connection }) : null;
+export const importQueue = connection ? new Queue<ImportJob>('import', { connection }) : null;
+export const gamificationQueue = connection ? new Queue<GamificationJob>('gamification', { connection }) : null;
+export const percentileQueue = connection ? new Queue<PercentileCalculationJob>('percentile', { connection }) : null;
 
 /**
  * Check if queues are ready to use
@@ -194,6 +233,107 @@ export const queueHelpers = {
   },
 
   /**
+   * Send email via queue
+   */
+  async sendEmail(to: string, subject: string, template: string, data: Record<string, any>) {
+    if (!emailQueue || !(await areQueuesReady())) {
+      console.warn('⚠️ Queue not available, email will be sent synchronously');
+      return;
+    }
+    try {
+      await emailQueue.add(
+        'send',
+        { to, subject, template, data },
+        { attempts: 3, backoff: { type: 'exponential', delay: 2000 } }
+      );
+      console.log(`✅ Email job queued for ${to}`);
+    } catch (error) {
+      console.error('Failed to queue email job:', error);
+    }
+  },
+
+  /**
+   * Create notification
+   */
+  async createNotification(userId: string, type: string, title: string, message: string, data?: Record<string, any>) {
+    if (!notificationQueue || !(await areQueuesReady())) {
+      console.warn('⚠️ Queue not available, notification will be created synchronously');
+      return;
+    }
+    try {
+      await notificationQueue.add(
+        'create',
+        { userId, type, title, message, data },
+        { attempts: 2 }
+      );
+      console.log(`✅ Notification job queued for user ${userId}`);
+    } catch (error) {
+      console.error('Failed to queue notification job:', error);
+    }
+  },
+
+  /**
+   * Process import job
+   */
+  async processImport(importId: string, userId: string, fileUrl: string, type: 'csv' | 'qti', mapping: Record<string, string>) {
+    if (!importQueue || !(await areQueuesReady())) {
+      console.warn('⚠️ Queue not available, import will be processed synchronously');
+      return;
+    }
+    try {
+      const job = await importQueue.add(
+        'process',
+        { importId, userId, fileUrl, type, mapping },
+        { attempts: 1, timeout: 600000 } // 10 minute timeout for large imports
+      );
+      console.log(`✅ Import job queued with ID ${job.id}`);
+      return job.id;
+    } catch (error) {
+      console.error('Failed to queue import job:', error);
+    }
+  },
+
+  /**
+   * Process gamification event
+   */
+  async processGamification(userId: string, eventType: string, data: Record<string, any>) {
+    if (!gamificationQueue || !(await areQueuesReady())) {
+      console.warn('⚠️ Queue not available, gamification will be processed synchronously');
+      return;
+    }
+    try {
+      await gamificationQueue.add(
+        'process',
+        { userId, eventType, data },
+        { attempts: 3, backoff: { type: 'exponential', delay: 1000 } }
+      );
+      console.log(`✅ Gamification job queued for user ${userId}, event ${eventType}`);
+    } catch (error) {
+      console.error('Failed to queue gamification job:', error);
+    }
+  },
+
+  /**
+   * Calculate percentile
+   */
+  async calculatePercentile(testId: string, attemptId: string) {
+    if (!percentileQueue || !(await areQueuesReady())) {
+      console.warn('⚠️ Queue not available, percentile will be calculated synchronously');
+      return;
+    }
+    try {
+      await percentileQueue.add(
+        'calculate',
+        { testId, attemptId },
+        { attempts: 3, backoff: { type: 'exponential', delay: 1000 } }
+      );
+      console.log(`✅ Percentile calculation job queued for attempt ${attemptId}`);
+    } catch (error) {
+      console.error('Failed to queue percentile calculation:', error);
+    }
+  },
+
+  /**
    * Get job status
    */
   async getJobStatus(queue: Queue | null, jobId: string) {
@@ -246,12 +386,22 @@ if (connection) {
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  if (testScoringQueue) await testScoringQueue.close();
-  if (reportQueue) await reportQueue.close();
-  if (analyticsQueue) await analyticsQueue.close();
-  if (invoiceQueue) await invoiceQueue.close();
-  if (bulkImportQueue) await bulkImportQueue.close();
-  console.log('Job queues closed');
+  console.log('Closing job queues...');
+  const closePromises = [];
+  
+  if (testScoringQueue) closePromises.push(testScoringQueue.close());
+  if (reportQueue) closePromises.push(reportQueue.close());
+  if (analyticsQueue) closePromises.push(analyticsQueue.close());
+  if (invoiceQueue) closePromises.push(invoiceQueue.close());
+  if (bulkImportQueue) closePromises.push(bulkImportQueue.close());
+  if (emailQueue) closePromises.push(emailQueue.close());
+  if (notificationQueue) closePromises.push(notificationQueue.close());
+  if (importQueue) closePromises.push(importQueue.close());
+  if (gamificationQueue) closePromises.push(gamificationQueue.close());
+  if (percentileQueue) closePromises.push(percentileQueue.close());
+  
+  await Promise.all(closePromises);
+  console.log('✅ All job queues closed');
 });
 
 export default {
@@ -260,5 +410,10 @@ export default {
   analyticsQueue,
   invoiceQueue,
   bulkImportQueue,
+  emailQueue,
+  notificationQueue,
+  importQueue,
+  gamificationQueue,
+  percentileQueue,
   queueHelpers,
 };

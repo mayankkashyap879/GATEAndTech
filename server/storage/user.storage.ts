@@ -220,4 +220,27 @@ export class UserStorage {
         )
       );
   }
+
+  async consumeEmailVerificationToken(token: string): Promise<VerificationToken | undefined> {
+    const [verificationToken] = await db
+      .update(verificationTokens)
+      .set({ consumedAt: new Date() })
+      .where(
+        and(
+          eq(verificationTokens.token, token),
+          eq(verificationTokens.type, 'email_verification')
+        )
+      )
+      .returning();
+    return verificationToken || undefined;
+  }
+
+  async markEmailVerified(userId: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ emailVerified: new Date(), updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user || undefined;
+  }
 }

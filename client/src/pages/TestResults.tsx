@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, CheckCircle2, XCircle, Clock, Award, Target } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Clock, Award, Target, TrendingUp, AlertCircle } from "lucide-react";
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from "recharts";
 import type { Test, TestAttempt, TestResponse, Question } from "@shared/schema";
 
 export default function TestResults() {
@@ -35,6 +36,21 @@ export default function TestResults() {
   const { data: questions } = useQuery<Question[]>({
     queryKey: ["/api/tests", attempt?.testId, "questions"],
     enabled: !!attempt?.testId,
+  });
+
+  const { data: detailedAnalytics } = useQuery({
+    queryKey: ["/api/analytics/attempts", attemptId, "detailed"],
+    queryFn: async () => {
+      const response = await fetch(`/api/analytics/attempts/${attemptId}/detailed`);
+      if (!response.ok) throw new Error("Failed to fetch detailed analytics");
+      return response.json();
+    },
+    enabled: !!attemptId,
+  });
+
+  const { data: weakAreas } = useQuery({
+    queryKey: ["/api/analytics/weak-areas"],
+    enabled: !!attempt,
   });
 
   if (isLoadingAttempt) {
@@ -134,6 +150,135 @@ export default function TestResults() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Percentile Card */}
+      {attempt.percentile !== null && attempt.percentile !== undefined && (
+        <Card className="mb-8 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:from-purple-950">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Percentile Rank
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-blue-600 dark:text-blue-400">
+              {attempt.percentile}th
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              You scored better than {attempt.percentile}% of test takers
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Analytics Charts */}
+      {detailedAnalytics && (
+        <div className="grid gap-6 md:grid-cols-2 mb-8">
+          {/* Performance Distribution */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Performance Distribution</CardTitle>
+              <CardDescription>Breakdown of your answers</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: "Correct", value: detailedAnalytics.stats.correct, fill: "#22c55e" },
+                      { name: "Incorrect", value: detailedAnalytics.stats.incorrect, fill: "#ef4444" },
+                      { name: "Unattempted", value: detailedAnalytics.stats.unattempted, fill: "#94a3b8" },
+                    ]}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    label
+                  >
+                    {[
+                      <Cell key="correct" fill="#22c55e" />,
+                      <Cell key="incorrect" fill="#ef4444" />,
+                      <Cell key="unattempted" fill="#94a3b8" />,
+                    ]}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Topic-wise Performance */}
+          {detailedAnalytics.topicBreakdown && detailedAnalytics.topicBreakdown.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Topic-wise Accuracy</CardTitle>
+                <CardDescription>Performance across different topics</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={detailedAnalytics.topicBreakdown}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="topic" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="correct" fill="#22c55e" name="Correct" />
+                    <Bar dataKey="incorrect" fill="#ef4444" name="Incorrect" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Weak Areas Recommendations */}
+      {weakAreas && weakAreas.recommendations && weakAreas.recommendations.length > 0 && (
+        <Card className="mb-8 border-orange-200 dark:border-orange-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
+              <AlertCircle className="h-5 w-5" />
+              Areas for Improvement
+            </CardTitle>
+            <CardDescription>Topics that need more practice</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {weakAreas.recommendations.map((rec: any, idx: number) => (
+                <div key={idx} className="p-4 bg-orange-50 dark:bg-orange-950 rounded-lg">
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="font-semibold">{rec.topic}</h4>
+                    <Badge variant="outline" className="text-orange-600">
+                      {rec.accuracy}% accuracy
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">{rec.reason}</p>
+                  <p className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                    💡 {rec.suggestion}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Link to Review Mode */}
+      {test?.showSolutionsAfterSubmit !== false && (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Review Your Answers</CardTitle>
+            <CardDescription>See detailed solutions with color-coded answers</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => navigate(`/attempts/${attemptId}/review`)} className="w-full">
+              Open Review Mode
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

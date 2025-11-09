@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useLocation } from "wouter";
 import { BookOpen, TrendingUp, Calendar, Users, Eye, FileQuestion, BarChart3, MessageSquare, ShoppingCart, Package } from "lucide-react";
 import DashboardNavigation from "@/components/dashboard/DashboardNavigation";
+import UnverifiedEmailBanner from "@/components/UnverifiedEmailBanner";
 
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
@@ -54,6 +55,10 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 space-y-8">
         <DashboardNavigation />
+        
+        {/* Email Verification Banner */}
+        <UnverifiedEmailBanner user={user} />
+        
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex-1">

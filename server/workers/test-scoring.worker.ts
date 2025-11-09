@@ -17,29 +17,94 @@ if (redisUrl) {
 }
 
 /**
- * Calculate test score from responses
+ * Calculate test score from responses with section-wise statistics
  */
-async function calculateTestScore(attemptId: string, testId: string): Promise<{ score: number; maxScore: number }> {
+async function calculateTestScore(attemptId: string, testId: string): Promise<{ 
+  score: number; 
+  maxScore: number;
+  summary: any;
+}> {
   // Get test and questions
   const test = await storage.getTest(testId);
   const questions = await storage.getTestQuestions(testId);
   const responses = await storage.getTestAttemptResponses(attemptId);
+  const sections = await storage.getTestSections(testId);
   
   if (!test) {
     throw new Error(`Test ${testId} not found`);
   }
 
-  // Calculate score
+  // Track overall and per-section statistics
   let totalScore = 0;
+  const sectionStats: Record<number, {
+    sectionId: number;
+    sectionName: string;
+    answered: number;
+    notAnswered: number;
+    marked: number;
+    visited: number;
+    timeSpent: number;
+    score: number;
+    totalQuestions: number;
+  }> = {};
+
+  // Initialize section stats
+  for (const section of sections) {
+    sectionStats[section.id] = {
+      sectionId: section.id,
+      sectionName: section.name,
+      answered: 0,
+      notAnswered: 0,
+      marked: 0,
+      visited: 0,
+      timeSpent: 0,
+      score: 0,
+      totalQuestions: 0,
+    };
+  }
+
+  // Count total questions per section
+  for (const question of questions) {
+    if (question.sectionId && sectionStats[question.sectionId]) {
+      sectionStats[question.sectionId].totalQuestions++;
+    }
+  }
+
+  // Overall stats
+  let overallAnswered = 0;
+  let overallNotAnswered = 0;
+  let overallMarked = 0;
+  let overallVisited = 0;
+  let overallTimeSpent = 0;
+
+  // Calculate score and statistics
   for (const response of responses) {
     const question = questions.find(q => q.id === response.questionId);
     if (!question) continue;
     
     let isCorrect = false;
     let marksAwarded = 0;
+    const hasAnswer = response.selectedAnswer && response.selectedAnswer.trim() !== "";
+    
+    // Update overall stats
+    if (hasAnswer) overallAnswered++;
+    if (response.isVisited && !hasAnswer) overallNotAnswered++;
+    if (response.isMarkedForReview) overallMarked++;
+    if (response.isVisited) overallVisited++;
+    overallTimeSpent += response.timeSpentSeconds || 0;
+
+    // Update section stats
+    if (question.sectionId && sectionStats[question.sectionId]) {
+      const secStat = sectionStats[question.sectionId];
+      if (hasAnswer) secStat.answered++;
+      if (response.isVisited && !hasAnswer) secStat.notAnswered++;
+      if (response.isMarkedForReview) secStat.marked++;
+      if (response.isVisited) secStat.visited++;
+      secStat.timeSpent += response.timeSpentSeconds || 0;
+    }
     
     // Skip scoring if answer is empty/cleared (unanswered)
-    if (!response.selectedAnswer || response.selectedAnswer.trim() === "") {
+    if (!hasAnswer) {
       await storage.updateTestResponse(response.id, {
         isCorrect: false,
         marksAwarded: 0,
@@ -68,11 +133,30 @@ async function calculateTestScore(attemptId: string, testId: string): Promise<{ 
     });
     
     totalScore += marksAwarded;
+
+    // Update section score
+    if (question.sectionId && sectionStats[question.sectionId]) {
+      sectionStats[question.sectionId].score += marksAwarded;
+    }
   }
+
+  // Build summary object
+  const summary = {
+    overall: {
+      answered: overallAnswered,
+      notAnswered: overallNotAnswered,
+      marked: overallMarked,
+      visited: overallVisited,
+      timeSpent: overallTimeSpent,
+      totalQuestions: questions.length,
+    },
+    sections: Object.values(sectionStats),
+  };
   
   return {
     score: totalScore,
     maxScore: test.totalMarks || 0,
+    summary,
   };
 }
 
@@ -91,23 +175,25 @@ if (connection) {
       console.log(`🔄 Processing test scoring for attempt ${attemptId}`);
       
       try {
-        // Calculate score
-        const { score, maxScore } = await calculateTestScore(attemptId, testId);
+        // Calculate score with section-wise statistics
+        const { score, maxScore, summary } = await calculateTestScore(attemptId, testId);
         
-        // Update attempt with score and status
+        // Update attempt with score, status, and summary
         await storage.updateTestAttempt(attemptId, {
           score,
           maxScore,
           status: "submitted",
+          summary,
         });
         
         console.log(`✅ Test scored: ${score}/${maxScore} for attempt ${attemptId}`);
         
-        // Trigger analytics update job (import will be added at top)
+        // Trigger analytics update and percentile calculation jobs
         const { queueHelpers } = await import('../queue.js');
         await queueHelpers.updateAnalytics(userId, testId);
+        await queueHelpers.calculatePercentile(testId, attemptId);
         
-        return { score, maxScore, attemptId };
+        return { score, maxScore, attemptId, summary };
       } catch (error) {
         console.error(`❌ Test scoring failed for attempt ${attemptId}:`, error);
         throw error;

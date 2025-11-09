@@ -145,6 +145,14 @@ export default function QuestionPalette({
             <span className="text-muted-foreground">Marked for Review:</span>
             <Badge variant="secondary" className="bg-purple-500 text-white">{stats.marked}</Badge>
           </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Answered & Marked:</span>
+            <Badge variant="secondary" className="bg-purple-600 text-white">{stats.answeredMarked}</Badge>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Not Visited:</span>
+            <Badge variant="secondary" className="bg-slate-400 text-white">{stats.notVisited}</Badge>
+          </div>
         </div>
       </Card>
     </div>

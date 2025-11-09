@@ -68,8 +68,12 @@ export const verificationTokens = pgTable("verification_tokens", {
   token: text("token").notNull().unique(),
   type: text("type").notNull(), // 'email_verification', 'password_reset'
   expiresAt: timestamp("expires_at").notNull(),
+  consumedAt: timestamp("consumed_at"), // When token was used
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  tokenIdx: index("verification_tokens_token_idx").on(table.token),
+  userTypeIdx: index("verification_tokens_user_type_idx").on(table.userId, table.type),
+}));
 
 // ============================================================================
 // QUESTION BANK
@@ -107,7 +111,7 @@ export const questions = pgTable("questions", {
   correctAnswer: text("correct_answer"), // For numerical type
   explanation: text("explanation"),
   marks: integer("marks").default(1).notNull(),
-  negativeMarks: integer("negative_marks").default(0).notNull(),
+  negativeMarks: numeric("negative_marks", { precision: 4, scale: 2 }).default('0').notNull(),
   imageUrl: text("image_url"),
   createdBy: varchar("created_by").notNull().references(() => users.id),
   isPublished: boolean("is_published").default(false).notNull(),
@@ -148,6 +152,8 @@ export const tests = pgTable("tests", {
   status: testStatusEnum("status").default("draft").notNull(),
   isPro: boolean("is_pro").default(false).notNull(), // Only for pro users
   scheduledAt: timestamp("scheduled_at"),
+  allowCalculator: boolean("allow_calculator").default(true).notNull(),
+  showSolutionsAfterSubmit: boolean("show_solutions_after_submit").default(true).notNull(),
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -160,13 +166,29 @@ export const tests = pgTable("tests", {
   statusProScheduledIdx: index("tests_status_pro_scheduled_idx").on(table.status, table.isPro, table.scheduledAt),
 }));
 
+// Test sections for sectional tests
+export const testSections = pgTable("test_sections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  testId: varchar("test_id").notNull().references(() => tests.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  orderIndex: integer("order_index").notNull(),
+  durationSeconds: integer("duration_seconds"), // null means no separate timing
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  testIdx: index("test_sections_test_idx").on(table.testId),
+  orderIdx: index("test_sections_order_idx").on(table.testId, table.orderIndex),
+}));
+
 export const testQuestions = pgTable("test_questions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   testId: varchar("test_id").notNull().references(() => tests.id, { onDelete: "cascade" }),
   questionId: varchar("question_id").notNull().references(() => questions.id, { onDelete: "cascade" }),
-  order: integer("order").notNull(),
+  sectionId: varchar("section_id").references(() => testSections.id, { onDelete: "set null" }),
+  orderIndex: integer("order_index").notNull(),
 }, (table) => ({
   testIdx: index("test_questions_test_idx").on(table.testId),
+  sectionIdx: index("test_questions_section_idx").on(table.sectionId),
+  orderIdx: index("test_questions_order_idx").on(table.testId, table.orderIndex),
   uniq: unique().on(table.testId, table.questionId),
 }));
 
@@ -179,9 +201,11 @@ export const testAttempts = pgTable("test_attempts", {
   submittedAt: timestamp("submitted_at"),
   score: integer("score"),
   maxScore: integer("max_score"),
-  percentile: integer("percentile"),
+  percentile: numeric("percentile", { precision: 5, scale: 2 }), // Changed to numeric for decimal precision
   timeTaken: integer("time_taken"), // in seconds
   responses: jsonb("responses"), // Stores all responses for quick access
+  sectionState: jsonb("section_state"), // Current section, remaining time per section
+  summary: jsonb("summary"), // Post-submission summary stats
 }, (table) => ({
   testIdx: index("test_attempts_test_idx").on(table.testId),
   statusIdx: index("test_attempts_status_idx").on(table.status),
@@ -199,9 +223,12 @@ export const testResponses = pgTable("test_responses", {
   selectedAnswer: text("selected_answer"), // Option ID or numerical value
   isCorrect: boolean("is_correct"),
   marksAwarded: integer("marks_awarded").default(0),
-  timeTaken: integer("time_taken"), // in seconds
+  timeSpentSeconds: integer("time_spent_seconds").default(0), // Time spent on this question
   isMarkedForReview: boolean("is_marked_for_review").default(false),
+  isVisited: boolean("is_visited").default(false).notNull(),
+  lastSavedAt: timestamp("last_saved_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
   attemptIdx: index("test_responses_attempt_idx").on(table.attemptId),
   uniq: unique().on(table.attemptId, table.questionId),
@@ -376,8 +403,17 @@ export const testsRelations = relations(tests, ({ one, many }) => ({
     fields: [tests.createdBy],
     references: [users.id],
   }),
+  testSections: many(testSections),
   testQuestions: many(testQuestions),
   attempts: many(testAttempts),
+}));
+
+export const testSectionsRelations = relations(testSections, ({ one, many }) => ({
+  test: one(tests, {
+    fields: [testSections.testId],
+    references: [tests.id],
+  }),
+  testQuestions: many(testQuestions),
 }));
 
 export const testQuestionsRelations = relations(testQuestions, ({ one }) => ({
@@ -388,6 +424,10 @@ export const testQuestionsRelations = relations(testQuestions, ({ one }) => ({
   question: one(questions, {
     fields: [testQuestions.questionId],
     references: [questions.id],
+  }),
+  section: one(testSections, {
+    fields: [testQuestions.sectionId],
+    references: [testSections.id],
   }),
 }));
 
@@ -584,6 +624,15 @@ export const insertTestSchema = createInsertSchema(tests, {
 }).omit({ id: true, createdAt: true, updatedAt: true });
 
 export const selectTestSchema = createSelectSchema(tests);
+
+// Test Section schemas
+export const insertTestSectionSchema = createInsertSchema(testSections, {
+  name: z.string().min(1).max(200),
+  orderIndex: z.number().int().nonnegative(),
+  durationSeconds: z.number().int().positive().nullable().optional(),
+}).omit({ id: true, createdAt: true });
+
+export const selectTestSectionSchema = createSelectSchema(testSections);
 
 // Test Attempt schemas
 export const insertTestAttemptSchema = createInsertSchema(testAttempts).omit({ 
@@ -918,6 +967,12 @@ export type InsertTopic = z.infer<typeof insertTopicSchema>;
 export type Test = typeof tests.$inferSelect;
 export type InsertTest = z.infer<typeof insertTestSchema>;
 
+export type TestSection = typeof testSections.$inferSelect;
+export type InsertTestSection = z.infer<typeof insertTestSectionSchema>;
+
+export type TestQuestion = typeof testQuestions.$inferSelect;
+export type InsertTestQuestion = typeof testQuestions.$inferInsert;
+
 export type TestAttempt = typeof testAttempts.$inferSelect;
 export type InsertTestAttempt = z.infer<typeof insertTestAttemptSchema>;
 
@@ -984,8 +1039,14 @@ export type InsertCommentVote = z.infer<typeof insertCommentVoteSchema>;
 export type Flag = typeof flags.$inferSelect;
 export type InsertFlag = z.infer<typeof insertFlagSchema>;
 
-export type TestSection = typeof testSections.$inferSelect;
-export type InsertTestSection = z.infer<typeof insertTestSectionSchema>;
-
 export type SectionQuestion = typeof sectionQuestions.$inferSelect;
 export type InsertSectionQuestion = z.infer<typeof insertSectionQuestionSchema>;
+
+// Email verification specific schemas
+export const verifyEmailSchema = z.object({
+  token: z.string().min(32),
+});
+
+export const resendVerificationSchema = z.object({
+  email: z.string().email().optional(), // Optional if user is already logged in
+});

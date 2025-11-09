@@ -132,6 +132,8 @@ export interface IStorage {
   updateTestResponse(id: string, data: Partial<InsertTestResponse>): Promise<TestResponse | undefined>;
   getTestAttemptResponses(attemptId: string): Promise<TestResponse[]>;
   getTestResponse(attemptId: string, questionId: string): Promise<TestResponse | undefined>;
+  upsertTestResponse(response: InsertTestResponse): Promise<TestResponse>;
+  getTestSections(testId: string): Promise<any[]>;
   getTestSeries(id: string): Promise<TestSeries | undefined>;
   getAllTestSeries(filters?: { isActive?: boolean }): Promise<TestSeries[]>;
   createTestSeries(testSeries: InsertTestSeries): Promise<TestSeries>;
@@ -503,6 +505,14 @@ export class Storage implements IStorage {
 
   getTestResponse(attemptId: string, questionId: string): Promise<TestResponse | undefined> {
     return this.testStorage.getTestResponse(attemptId, questionId);
+  }
+
+  upsertTestResponse(response: InsertTestResponse): Promise<TestResponse> {
+    return this.testStorage.upsertTestResponse(response);
+  }
+
+  getTestSections(testId: string): Promise<any[]> {
+    return this.testStorage.getTestSections(testId);
   }
 
   getTestSeries(id: string): Promise<TestSeries | undefined> {

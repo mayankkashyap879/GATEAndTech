@@ -3,6 +3,7 @@ import {
   testQuestions,
   testAttempts,
   testResponses,
+  testSections,
   questions,
   type Test,
   type InsertTest,
@@ -10,6 +11,8 @@ import {
   type InsertTestAttempt,
   type TestResponse,
   type InsertTestResponse,
+  type TestSection,
+  type InsertTestSection,
   type Question,
 } from "@shared/schema";
 import { db } from "../db";
@@ -71,7 +74,7 @@ export class TestStorage {
     const values = questionIds.map((questionId, index) => ({
       testId,
       questionId,
-      order: index + 1,
+      orderIndex: index + 1,
     }));
     
     await db.insert(testQuestions).values(values);
@@ -81,12 +84,12 @@ export class TestStorage {
     const result = await db
       .select({
         question: questions,
-        order: testQuestions.order,
+        orderIndex: testQuestions.orderIndex,
       })
       .from(testQuestions)
       .innerJoin(questions, eq(testQuestions.questionId, questions.id))
       .where(eq(testQuestions.testId, testId))
-      .orderBy(asc(testQuestions.order));
+      .orderBy(asc(testQuestions.orderIndex));
 
     return result.map((r) => r.question);
   }
@@ -171,5 +174,82 @@ export class TestStorage {
         eq(testResponses.questionId, questionId)
       ));
     return response || undefined;
+  }
+
+  // Test Section Methods
+  async createTestSection(insertSection: InsertTestSection): Promise<TestSection> {
+    const [section] = await db
+      .insert(testSections)
+      .values(insertSection)
+      .returning();
+    return section;
+  }
+
+  async getTestSections(testId: string): Promise<TestSection[]> {
+    return await db
+      .select()
+      .from(testSections)
+      .where(eq(testSections.testId, testId))
+      .orderBy(asc(testSections.orderIndex));
+  }
+
+  async getTestSection(id: string): Promise<TestSection | undefined> {
+    const [section] = await db
+      .select()
+      .from(testSections)
+      .where(eq(testSections.id, id));
+    return section || undefined;
+  }
+
+  async updateTestSection(id: string, data: Partial<InsertTestSection>): Promise<TestSection | undefined> {
+    const [section] = await db
+      .update(testSections)
+      .set(data)
+      .where(eq(testSections.id, id))
+      .returning();
+    return section || undefined;
+  }
+
+  async deleteTestSection(id: string): Promise<void> {
+    await db.delete(testSections).where(eq(testSections.id, id));
+  }
+
+  // Update attempt section state
+  async updateTestAttemptSectionState(
+    attemptId: string,
+    sectionState: { activeSectionId?: string; remainingSec?: number }
+  ): Promise<TestAttempt | undefined> {
+    const [attempt] = await db
+      .update(testAttempts)
+      .set({ sectionState })
+      .where(eq(testAttempts.id, attemptId))
+      .returning();
+    return attempt || undefined;
+  }
+
+  // Upsert test response with idempotency support
+  async upsertTestResponse(insertResponse: InsertTestResponse): Promise<TestResponse> {
+    const existing = await this.getTestResponse(
+      insertResponse.attemptId,
+      insertResponse.questionId
+    );
+
+    if (existing) {
+      const [updated] = await db
+        .update(testResponses)
+        .set({
+          ...insertResponse,
+          updatedAt: new Date(),
+        })
+        .where(eq(testResponses.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(testResponses)
+        .values(insertResponse)
+        .returning();
+      return created;
+    }
   }
 }

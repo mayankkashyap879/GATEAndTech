@@ -87,7 +87,12 @@ export function testRoutes(app: Express): void {
         return res.status(403).json({ error: "Access denied. Purchase required." });
       }
       
-      res.json(test);
+      // Include test sections if they exist
+      console.log('storage.getTestSections:', typeof storage.getTestSections);
+      console.log('storage keys:', Object.keys(storage));
+      const sections = await storage.getTestSections(test.id);
+      
+      res.json({ ...test, sections });
     } catch (error) {
       console.error("Error fetching test:", error);
       res.status(500).json({ error: "Internal server error" });
@@ -208,10 +213,23 @@ export function testRoutes(app: Express): void {
         return res.status(403).json({ error: "Access denied. Purchase required." });
       }
       
+      // Get test sections if they exist
+      const sections = await storage.getTestSections(testId);
+      
+      // Initialize section state if test has sections
+      let sectionState = null;
+      if (sections.length > 0) {
+        sectionState = {
+          activeSectionId: sections[0].id,
+          remainingSec: sections[0].durationSeconds || null,
+        };
+      }
+      
       const attempt = await storage.createTestAttempt({
         testId,
         userId: currentUser.id,
         maxScore: test.totalMarks,
+        sectionState,
       });
       
       res.status(201).json(attempt);
@@ -300,7 +318,7 @@ export function testRoutes(app: Express): void {
     }
   });
 
-  // Save test response (upsert)
+  // Save test response (upsert) - idempotent autosave
   app.post("/api/attempts/:id/responses", requireAuth, async (req: Request, res: Response) => {
     try {
       const currentUser = req.user as any;
@@ -318,29 +336,18 @@ export function testRoutes(app: Express): void {
         return res.status(400).json({ error: "Cannot modify submitted test" });
       }
       
-      const { questionId, selectedAnswer, isMarkedForReview, timeTaken } = req.body;
+      const { questionId, selectedAnswer, isMarkedForReview, timeSpentSeconds, isVisited } = req.body;
       
-      // Check if response already exists
-      const existingResponse = await storage.getTestResponse(req.params.id, questionId);
-      
-      let response;
-      if (existingResponse) {
-        // Update existing response
-        response = await storage.updateTestResponse(existingResponse.id, {
-          selectedAnswer,
-          isMarkedForReview,
-          timeTaken,
-        });
-      } else {
-        // Create new response
-        response = await storage.createTestResponse({
-          attemptId: req.params.id,
-          questionId,
-          selectedAnswer,
-          isMarkedForReview,
-          timeTaken,
-        });
-      }
+      // Use upsert for idempotency - safe for concurrent/duplicate requests
+      const response = await storage.upsertTestResponse({
+        attemptId: req.params.id,
+        questionId,
+        selectedAnswer: selectedAnswer || "",
+        isMarkedForReview: isMarkedForReview || false,
+        timeSpentSeconds: timeSpentSeconds || 0,
+        isVisited: isVisited !== undefined ? isVisited : true,
+        lastSavedAt: new Date(),
+      });
       
       res.status(200).json(response);
     } catch (error) {
